@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 
+// --- ต่อด้วยโค้ดส่วน Configuration & Constants ด้านล่าง...
 // --- Configuration & Constants ---
 const STROKE_TYPES = ['Thrombotic', 'Embolic', 'TIA', 'Recurrent Stroke'];
 const CASE_STATUS = ['Stroke ทั่วไป', 'ภาวะแทรกซ้อน', 'Readmit จาก Stroke'];
