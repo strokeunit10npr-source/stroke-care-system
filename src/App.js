@@ -1,5 +1,5 @@
-const API_URL = process.env.REACT_APP_API_URL;
-const APP_TOKEN = process.env.REACT_APP_APP_TOKEN || "";
+const API_URL = import.meta.env.VITE_API_URL;
+const APP_TOKEN = import.meta.env.VITE_APP_TOKEN || "";
 ```javascript
 import React, { useState, useEffect, useMemo } from "react";
 import {
