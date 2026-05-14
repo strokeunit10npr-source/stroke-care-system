@@ -10,7 +10,6 @@ import {
   Home,
   UserPlus,
 } from "lucide-react";
-
 import {
   PieChart,
   Pie,
@@ -20,10 +19,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const API_URL = process.env.REACT_APP_API_URL;
-const APP_TOKEN = process.env.REACT_APP_APP_TOKEN || "";
+const API_URL =
+  "https://script.google.com/macros/s/AKfycbxpXWREr794B4sGLLRmvHauMNlt9yfJD2kSH6LZrsGfm4unvQSKYVR-BO_w3aHcUH9G2w/exec";
 
-const defaultForm = {
+const APP_TOKEN = "stroke2026secure";
+
+const createDefaultForm = () => ({
   hn: "",
   an: "",
   fullName: "",
@@ -47,7 +48,7 @@ const defaultForm = {
   doctor: "",
   nurse: "",
   remark: "",
-};
+});
 
 function Card({ title, value }) {
   return (
@@ -58,7 +59,7 @@ function Card({ title, value }) {
   );
 }
 
-function Input({ label, value, onChange }) {
+function Input({ label, value, onChange, required = false }) {
   return (
     <div>
       <label className="text-[10px] uppercase font-black text-slate-400">
@@ -66,6 +67,7 @@ function Input({ label, value, onChange }) {
       </label>
       <input
         value={value}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
         className="w-full mt-2 border-2 border-slate-100 rounded-xl p-3 bg-slate-50 text-sm outline-none"
       />
@@ -78,26 +80,55 @@ export default function App() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState(defaultForm);
+  const [formData, setFormData] = useState(createDefaultForm());
+
+  const safeJsonFetch = async (url, options = {}) => {
+    const response = await fetch(url, options);
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(text || `HTTP ${response.status}`);
+    }
+
+    if (!text) {
+      return { status: "success", data: [] };
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(text);
+    }
+  };
 
   const fetchPatients = async () => {
     if (!API_URL) {
-      console.error("REACT_APP_API_URL not found");
+      console.error("API_URL not found");
       return;
     }
 
     setLoading(true);
 
     try {
-      const url = `${API_URL}?action=getPatients&token=${APP_TOKEN}`;
-      const res = await fetch(url);
-      const result = await res.json();
+      const params = new URLSearchParams({
+        action: "getPatients",
+      });
+
+      if (APP_TOKEN) {
+        params.append("token", APP_TOKEN);
+      }
+
+      const result = await safeJsonFetch(`${API_URL}?${params.toString()}`);
 
       if (result.status === "success") {
-        setPatients(result.data || []);
+        setPatients(Array.isArray(result.data) ? result.data : []);
+      } else {
+        console.error("API Error:", result);
+        setPatients([]);
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Fetch error:", error.message);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -111,11 +142,11 @@ export default function App() {
     const total = patients.length;
 
     const fastTrackCount = patients.filter(
-      (p) => p.thrombolysis === "ให้ rt-PA"
+      (patient) => patient?.thrombolysis === "ให้ rt-PA"
     ).length;
 
-    const typeMap = patients.reduce((acc, p) => {
-      const type = p.strokeType || "ไม่ระบุ";
+    const typeMap = patients.reduce((acc, patient) => {
+      const type = patient?.strokeType || "ไม่ระบุ";
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {});
@@ -125,40 +156,63 @@ export default function App() {
       value: typeMap[key],
     }));
 
-    return { total, fastTrackCount, pieData };
+    return {
+      total,
+      fastTrackCount,
+      pieData,
+    };
   }, [patients]);
 
-  const filteredPatients = patients.filter((p) => {
-    const keyword = searchTerm.toLowerCase();
-    return (
-      (p.fullName || p.patientName || "").toLowerCase().includes(keyword) ||
-      (p.hn || "").toLowerCase().includes(keyword) ||
-      (p.an || "").toLowerCase().includes(keyword)
-    );
-  });
+  const filteredPatients = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+
+    if (!keyword) {
+      return patients;
+    }
+
+    return patients.filter((patient) => {
+      const name = (patient?.fullName || patient?.patientName || "")
+        .toString()
+        .toLowerCase();
+      const hn = (patient?.hn || "").toString().toLowerCase();
+      const an = (patient?.an || "").toString().toLowerCase();
+
+      return (
+        name.includes(keyword) ||
+        hn.includes(keyword) ||
+        an.includes(keyword)
+      );
+    });
+  }, [patients, searchTerm]);
 
   const handleInputChange = (key, value) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-    if (!formData.hn || !formData.an || !formData.fullName) {
+    if (!formData.hn.trim() || !formData.an.trim() || !formData.fullName.trim()) {
       alert("กรุณากรอก HN, AN และชื่อผู้ป่วยให้ครบ");
       return;
     }
 
-    try {
-      setLoading(true);
+    setLoading(true);
 
+    try {
       const payload = {
         action: "addPatient",
-        token: APP_TOKEN,
         ...formData,
       };
 
-      const res = await fetch(API_URL, {
+      if (APP_TOKEN) {
+        payload.token = APP_TOKEN;
+      }
+
+      const result = await safeJsonFetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -166,19 +220,17 @@ export default function App() {
         body: JSON.stringify(payload),
       });
 
-      const result = await res.json();
-
       if (result.status === "success") {
         alert("บันทึกข้อมูลสำเร็จ");
-        setFormData(defaultForm);
-        fetchPatients();
+        setFormData(createDefaultForm());
+        await fetchPatients();
         setView("registry");
       } else {
-        alert(result.message || "เกิดข้อผิดพลาด");
+        alert(result.message || "เกิดข้อผิดพลาดจาก API");
       }
     } catch (error) {
-      console.error(error);
-      alert("เชื่อมต่อ API ไม่สำเร็จ");
+      console.error("Save error:", error.message);
+      alert("บันทึกข้อมูลไม่สำเร็จ กรุณาตรวจสอบ API และ Google Apps Script");
     } finally {
       setLoading(false);
     }
@@ -203,6 +255,7 @@ export default function App() {
           </div>
 
           <button
+            type="button"
             onClick={() => setView("add")}
             className="bg-blue-900 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
           >
@@ -230,12 +283,26 @@ export default function App() {
 
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
               <h2 className="font-black text-sm mb-6">Stroke Type Summary</h2>
-              <div className="h-[300px]">
+              <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={stats.pieData} dataKey="value" innerRadius={60} outerRadius={90}>
-                      {stats.pieData.map((_, i) => (
-                        <Cell key={i} />
+                    <Pie
+                      data={stats.pieData}
+                      dataKey="value"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={4}
+                    >
+                      {stats.pieData.map((_, index) => (
+                        <Cell
+                          key={index}
+                          fill={[
+                            "#1e3a8a",
+                            "#2563eb",
+                            "#60a5fa",
+                            "#93c5fd",
+                          ][index % 4]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -248,12 +315,33 @@ export default function App() {
         )}
 
         {view === "add" && (
-          <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6"
+          >
             <h2 className="font-black text-lg">Add Patient</h2>
+
             <div className="grid md:grid-cols-3 gap-6">
-              <Input label="HN" value={formData.hn} onChange={(v) => handleInputChange("hn", v)} />
-              <Input label="AN" value={formData.an} onChange={(v) => handleInputChange("an", v)} />
-              <Input label="ชื่อผู้ป่วย" value={formData.fullName} onChange={(v) => handleInputChange("fullName", v)} />
+              <Input
+                label="HN"
+                value={formData.hn}
+                required
+                onChange={(value) => handleInputChange("hn", value)}
+              />
+
+              <Input
+                label="AN"
+                value={formData.an}
+                required
+                onChange={(value) => handleInputChange("an", value)}
+              />
+
+              <Input
+                label="ชื่อผู้ป่วย"
+                value={formData.fullName}
+                required
+                onChange={(value) => handleInputChange("fullName", value)}
+              />
             </div>
 
             <button
@@ -271,31 +359,51 @@ export default function App() {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-black text-sm">Registry</h2>
+
               <div className="relative w-72">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="ค้นหา..."
+                  placeholder="ค้นหาผู้ป่วย..."
                   className="w-full bg-slate-50 rounded-xl pl-9 pr-4 py-2 text-xs font-bold outline-none"
                 />
               </div>
             </div>
 
             <table className="w-full text-left">
-              <thead>
+              <thead className="bg-slate-50 text-[10px] uppercase text-slate-400 font-black">
                 <tr>
                   <th className="px-6 py-4">HN / AN</th>
                   <th className="px-6 py-4">ชื่อผู้ป่วย</th>
                   <th className="px-6 py-4">Stroke Type</th>
+                  <th className="px-6 py-4">NIHSS</th>
                 </tr>
               </thead>
+
               <tbody>
-                {filteredPatients.map((p, i) => (
-                  <tr key={i}>
-                    <td className="px-6 py-4">{p.hn}<br />{p.an}</td>
-                    <td className="px-6 py-4">{p.fullName || p.patientName}</td>
-                    <td className="px-6 py-4">{p.strokeType}</td>
+                {filteredPatients.map((patient, index) => (
+                  <tr
+                    key={`${patient?.hn || "row"}-${index}`}
+                    className="border-t border-slate-50 text-xs"
+                  >
+                    <td className="px-6 py-4">
+                      {patient?.hn || "-"}
+                      <br />
+                      {patient?.an || "-"}
+                    </td>
+                    <td className="px-6 py-4 font-bold">
+                      {patient?.fullName || patient?.patientName || "-"}
+                    </td>
+                    <td className="px-6 py-4">
+                      {patient?.strokeType || "-"}
+                    </td>
+                    <td className="px-6 py-4">
+                      {patient?.nihss || "-"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
