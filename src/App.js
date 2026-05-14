@@ -92,8 +92,8 @@ const App = () => {
           <img src="https://upload.wikimedia.org/wikipedia/th/thumb/0/00/MOPH_Logo.png/220px-MOPH_Logo.png" alt="MOPH Logo" className="w-8 h-8 object-contain" />
         </div>
         <div>
-          <h1 className="text-sm md:text-base font-black leading-tight uppercase">Stroke Care CMS</h1>
-          <p className="text-[10px] opacity-70 font-medium">Mahasarakham Hospital - Ward 3A</p>
+          <h2 className="text-lg font-bold text-slate-800">Nopparat Rajathanee Hospital</h2>
+           <p className="text-xs text-slate-500">Stroke Unit Management System</p>
         </div>
       </div>
       <div className="flex items-center gap-3">
