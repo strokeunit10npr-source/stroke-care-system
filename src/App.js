@@ -17,8 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbxqFbhNVw8yp92KC8B7cXOD4Yl4YriDBj9hnufQ1KJxPk9TF4glw0tvibwRtrdzTtWW/exec";
+const API_URL = https://script.google.com/macros/s/AKfycbyOdU9fk4vIvofSmGr0BAMXYB4qdxp_EWqasctBeve3CdPtNgDy8W7_wJldghqkvE6w/exec
 
 const APP_TOKEN = "stroke2026secure";
 
