@@ -18,7 +18,7 @@ import {
 } from "recharts";
 
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxpXWREr794B4sGLLRmvHauMNlt9yfJD2kSH6LZrsGfm4unvQSKYVR-BO_w3aHcUH9G2w/exec";
+  "https://script.google.com/macros/s/AKfycbxqFbhNVw8yp92KC8B7cXOD4Yl4YriDBj9hnufQ1KJxPk9TF4glw0tvibwRtrdzTtWW/exec";
 
 const APP_TOKEN = "stroke2026secure";
 
