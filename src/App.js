@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
 
-const API_URL = process.env.REACT_APP_API_URL;
-const APP_TOKEN = process.env.REACT_APP_APP_TOKEN;
+const API_URL = https://script.google.com/macros/s/AKfycbyRat8w4uTbGoJuBb2dE6rfAu7-vyrTjSHKABaVep6eqdFIZc7qr5yI_bWl89BUeA6c/exec
+
+const APP_TOKEN = stroke2026secure
 
 const createDefaultForm = () => ({
   hn: "",
