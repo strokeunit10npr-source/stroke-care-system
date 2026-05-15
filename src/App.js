@@ -17,15 +17,13 @@ import {
 } from "recharts";
 
 /* =========================
-   ENV CONFIG
+   CONFIG
 ========================= */
 
 const API_URL =
-  process.env.REACT_APP_API_URL ||
   "https://script.google.com/macros/s/AKfycbyRat8w4uTbGoJuBb2dE6rfAu7-vyrTjSHKABaVep6eqdFIZc7qr5yI_bWl89BUeA6c/exec";
 
-const APP_TOKEN =
-  process.env.REACT_APP_APP_TOKEN || "stroke2026secure";
+const APP_TOKEN = "stroke2026secure";
 
 /* =========================
    DEFAULT FORM
@@ -259,7 +257,7 @@ export default function App() {
 
         setFormData(createDefaultForm());
 
-        fetchPatients();
+        await fetchPatients();
 
         setView("registry");
       } else {
@@ -274,12 +272,10 @@ export default function App() {
     }
   };
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      {/* HEADER */}
+
       <header className="bg-white p-4 md:p-6 flex justify-between items-center rounded-3xl shadow-sm">
         <div className="flex items-center gap-3">
           <div className="bg-blue-900 text-white p-3 rounded-xl">
@@ -296,63 +292,7 @@ export default function App() {
             </p>
           </div>
         </div>
-{/* DASHBOARD */}
 
-<div className="mt-6 grid md:grid-cols-3 gap-4">
-  <Card
-    title="ผู้ป่วยสะสม"
-    value={`${stats.total} ราย`}
-  />
-
-  <Card
-    title="ได้รับ rt-PA"
-    value={`${stats.fastTrackCount} ราย`}
-  />
-
-  <Card
-    title="สถานะระบบ"
-    value={apiError ? "OFFLINE" : "ONLINE"}
-  />
-</div>
-
-{/* PIE CHART */}
-
-<div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mt-6">
-  <h2 className="font-black text-sm mb-4">
-    Stroke Type Summary
-  </h2>
-
-  <div className="h-[260px]">
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={stats.pieData}
-          dataKey="value"
-          outerRadius={90}
-          innerRadius={50}
-        >
-          {stats.pieData.map((entry, index) => (
-            <Cell
-              key={index}
-              fill={
-                [
-                  "#1e3a8a",
-                  "#2563eb",
-                  "#60a5fa",
-                  "#93c5fd",
-                ][index % 4]
-              }
-            />
-          ))}
-        </Pie>
-
-        <Tooltip />
-
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
-                
         <button
           onClick={() => setView("add")}
           className="bg-blue-900 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-bold"
@@ -362,11 +302,238 @@ export default function App() {
         </button>
       </header>
 
+      {/* API ERROR */}
+
       {apiError && (
         <div className="bg-red-50 border border-red-200 p-4 rounded-xl mt-4">
           <p className="text-red-600 font-bold">
             API ERROR : {apiError}
           </p>
+        </div>
+      )}
+
+      {/* DASHBOARD */}
+
+      {view === "dashboard" && (
+        <>
+          <div className="mt-6 grid md:grid-cols-3 gap-4">
+            <Card
+              title="ผู้ป่วยสะสม"
+              value={`${stats.total} ราย`}
+            />
+
+            <Card
+              title="ได้รับ rt-PA"
+              value={`${stats.fastTrackCount} ราย`}
+            />
+
+            <Card
+              title="สถานะระบบ"
+              value={apiError ? "OFFLINE" : "ONLINE"}
+            />
+          </div>
+
+          {/* PIE CHART */}
+
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mt-6">
+            <h2 className="font-black text-sm mb-4">
+              Stroke Type Summary
+            </h2>
+
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.pieData}
+                    dataKey="value"
+                    outerRadius={90}
+                    innerRadius={50}
+                  >
+                    {stats.pieData.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={
+                          [
+                            "#1e3a8a",
+                            "#2563eb",
+                            "#60a5fa",
+                            "#93c5fd",
+                          ][index % 4]
+                        }
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ADD PATIENT */}
+
+      {view === "add" && (
+        <div className="mt-6">
+          <button
+            onClick={() => setView("dashboard")}
+            className="flex items-center gap-2 mb-4 text-blue-900 font-bold"
+          >
+            <ArrowLeft size={16} />
+            กลับ
+          </button>
+
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white p-6 rounded-3xl shadow-sm space-y-4"
+          >
+            <div className="grid md:grid-cols-3 gap-4">
+              <Input
+                label="HN"
+                value={formData.hn}
+                required
+                onChange={(v) =>
+                  handleInputChange("hn", v)
+                }
+              />
+
+              <Input
+                label="AN"
+                value={formData.an}
+                required
+                onChange={(v) =>
+                  handleInputChange("an", v)
+                }
+              />
+
+              <Input
+                label="ชื่อผู้ป่วย"
+                value={formData.fullName}
+                required
+                onChange={(v) =>
+                  handleInputChange("fullName", v)
+                }
+              />
+
+              <Input
+                label="Age"
+                type="number"
+                value={formData.age}
+                onChange={(v) =>
+                  handleInputChange("age", v)
+                }
+              />
+
+              <Input
+                label="NIHSS"
+                type="number"
+                value={formData.nihss}
+                onChange={(v) =>
+                  handleInputChange("nihss", v)
+                }
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-900 text-white py-3 rounded-xl flex items-center justify-center gap-2"
+            >
+              <Save size={14} />
+
+              {loading
+                ? "กำลังบันทึก..."
+                : "บันทึกข้อมูล"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* REGISTRY */}
+
+      {view === "registry" && (
+        <div className="mt-6">
+          <button
+            onClick={() => setView("dashboard")}
+            className="flex items-center gap-2 mb-4 text-blue-900 font-bold"
+          >
+            <ArrowLeft size={16} />
+            กลับ
+          </button>
+
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h2 className="font-black">
+                Registry
+              </h2>
+
+              <div className="relative w-72">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  value={searchTerm}
+                  onChange={(e) =>
+                    setSearchTerm(e.target.value)
+                  }
+                  placeholder="ค้นหาผู้ป่วย..."
+                  className="w-full bg-slate-50 rounded-xl pl-9 pr-4 py-2 text-sm outline-none"
+                />
+              </div>
+            </div>
+
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="p-4 text-left">
+                    HN
+                  </th>
+
+                  <th className="p-4 text-left">
+                    ชื่อผู้ป่วย
+                  </th>
+
+                  <th className="p-4 text-left">
+                    Stroke Type
+                  </th>
+
+                  <th className="p-4 text-left">
+                    NIHSS
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredPatients.map((p, index) => (
+                  <tr
+                    key={index}
+                    className="border-t"
+                  >
+                    <td className="p-4">
+                      {p.hn}
+                    </td>
+
+                    <td className="p-4">
+                      {p.fullName}
+                    </td>
+
+                    <td className="p-4">
+                      {p.strokeType}
+                    </td>
+
+                    <td className="p-4">
+                      {p.nihss}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
