@@ -21,7 +21,7 @@ import {
 ========================= */
 
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbyRat8w4uTbGoJuBb2dE6rfAu7-vyrTjSHKABaVep6eqdFIZc7qr5yI_bWl89BUeA6c/exec";
+  "https://script.google.com/macros/s/AKfycbyFJzCB3f7Qo6C5MvjI7RukKeV9fbkNFo_iLuwQPlAgFxEfRU_yOBVlza3kV8A5XWHy/exec";
 
 const APP_TOKEN = "stroke2026secure";
 
