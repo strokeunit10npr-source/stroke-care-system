@@ -296,7 +296,63 @@ export default function App() {
             </p>
           </div>
         </div>
+{/* DASHBOARD */}
 
+<div className="mt-6 grid md:grid-cols-3 gap-4">
+  <Card
+    title="ผู้ป่วยสะสม"
+    value={`${stats.total} ราย`}
+  />
+
+  <Card
+    title="ได้รับ rt-PA"
+    value={`${stats.fastTrackCount} ราย`}
+  />
+
+  <Card
+    title="สถานะระบบ"
+    value={apiError ? "OFFLINE" : "ONLINE"}
+  />
+</div>
+
+{/* PIE CHART */}
+
+<div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mt-6">
+  <h2 className="font-black text-sm mb-4">
+    Stroke Type Summary
+  </h2>
+
+  <div className="h-[260px]">
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={stats.pieData}
+          dataKey="value"
+          outerRadius={90}
+          innerRadius={50}
+        >
+          {stats.pieData.map((entry, index) => (
+            <Cell
+              key={index}
+              fill={
+                [
+                  "#1e3a8a",
+                  "#2563eb",
+                  "#60a5fa",
+                  "#93c5fd",
+                ][index % 4]
+              }
+            />
+          ))}
+        </Pie>
+
+        <Tooltip />
+
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
+  </div>
+                
         <button
           onClick={() => setView("add")}
           className="bg-blue-900 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-bold"
