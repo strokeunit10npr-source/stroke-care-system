@@ -11,15 +11,25 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip,
   Legend,
+  Tooltip,
   ResponsiveContainer,
 } from "recharts";
 
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbx6PdVmuYyjtg2s5mC4saBH9uKBo_8Q1RizLo1UdkzOuBacl9o9LEDz6uMQZt-agSbX/exec";
+/* =========================
+   ENV CONFIG
+========================= */
 
-const APP_TOKEN = "stroke2026secure";
+const API_URL =
+  process.env.REACT_APP_API_URL ||
+  "https://script.google.com/macros/s/AKfycbyRat8w4uTbGoJuBb2dE6rfAu7-vyrTjSHKABaVep6eqdFIZc7qr5yI_bWl89BUeA6c/exec";
+
+const APP_TOKEN =
+  process.env.REACT_APP_APP_TOKEN || "stroke2026secure";
+
+/* =========================
+   DEFAULT FORM
+========================= */
 
 const createDefaultForm = () => ({
   hn: "",
@@ -37,14 +47,27 @@ const createDefaultForm = () => ({
   remark: "",
 });
 
+/* =========================
+   CARD
+========================= */
+
 function Card({ title, value }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-      <p className="text-xs uppercase font-bold text-slate-400">{title}</p>
-      <h2 className="text-3xl font-black text-slate-800 mt-2">{value}</h2>
+    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+      <p className="text-[10px] uppercase font-black text-slate-400">
+        {title}
+      </p>
+
+      <h3 className="text-2xl font-black text-slate-800 mt-2">
+        {value}
+      </h3>
     </div>
   );
 }
+
+/* =========================
+   INPUT
+========================= */
 
 function Input({
   label,
@@ -55,9 +78,12 @@ function Input({
 }) {
   return (
     <div>
-      <label className="text-xs font-bold text-slate-500">
+      <label className="text-[10px] uppercase font-black text-slate-400">
         {label}
-        {required && <span className="text-red-500"> *</span>}
+
+        {required && (
+          <span className="text-red-500 ml-1">*</span>
+        )}
       </label>
 
       <input
@@ -65,38 +91,55 @@ function Input({
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-2 border rounded-xl p-3 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full mt-2 border-2 border-slate-100 rounded-xl p-3 bg-slate-50 text-sm outline-none"
       />
     </div>
   );
 }
 
+/* =========================
+   APP
+========================= */
+
 export default function App() {
   const [view, setView] = useState("dashboard");
+
   const [patients, setPatients] = useState([]);
+
   const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState("");
+
+  const [apiError, setApiError] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState(createDefaultForm());
+
+  const [formData, setFormData] = useState(
+    createDefaultForm()
+  );
+
+  /* =========================
+     FETCH PATIENTS
+  ========================= */
 
   const fetchPatients = async () => {
     setLoading(true);
-    setApiError("");
+
+    setApiError(null);
 
     try {
-      const response = await fetch(
-        `${API_URL}?action=getPatients&token=${APP_TOKEN}`
-      );
+      const url = `${API_URL}?action=getPatients&token=${APP_TOKEN}`;
 
-      const result = await response.json();
+      const response = await fetch(url);
 
-      if (result.status === "success") {
-        setPatients(result.data || []);
+      const json = await response.json();
+
+      if (json.status === "success") {
+        setPatients(json.data || []);
       } else {
-        setApiError(result.message || "Fetch failed");
+        setApiError(json.message || "API ERROR");
       }
     } catch (error) {
       console.error(error);
+
       setApiError("Cannot connect API");
     } finally {
       setLoading(false);
@@ -107,6 +150,10 @@ export default function App() {
     fetchPatients();
   }, []);
 
+  /* =========================
+     STATS
+  ========================= */
+
   const stats = useMemo(() => {
     const total = patients.length;
 
@@ -114,13 +161,13 @@ export default function App() {
       (p) => p.thrombolysis === "ให้ rt-PA"
     ).length;
 
-    const typeMap = patients.reduce((acc, p) => {
-      const type = p.strokeType || "ไม่ระบุ";
+    const typeMap = {};
 
-      acc[type] = (acc[type] || 0) + 1;
+    patients.forEach((p) => {
+      const type = p.strokeType || "Unknown";
 
-      return acc;
-    }, {});
+      typeMap[type] = (typeMap[type] || 0) + 1;
+    });
 
     const pieData = Object.keys(typeMap).map((key) => ({
       name: key,
@@ -134,23 +181,33 @@ export default function App() {
     };
   }, [patients]);
 
-  const filteredPatients = useMemo(() => {
-    const keyword = searchTerm.toLowerCase().trim();
+  /* =========================
+     FILTER
+  ========================= */
 
-    if (!keyword) return patients;
+  const filteredPatients = useMemo(() => {
+    const keyword = searchTerm.toLowerCase();
 
     return patients.filter((p) => {
-      const name = (p.fullName || "").toLowerCase();
-      const hn = (p.hn || "").toLowerCase();
-      const an = (p.an || "").toLowerCase();
-
       return (
-        name.includes(keyword) ||
-        hn.includes(keyword) ||
-        an.includes(keyword)
+        (p.fullName || "")
+          .toLowerCase()
+          .includes(keyword) ||
+
+        (p.hn || "")
+          .toLowerCase()
+          .includes(keyword) ||
+
+        (p.an || "")
+          .toLowerCase()
+          .includes(keyword)
       );
     });
   }, [patients, searchTerm]);
+
+  /* =========================
+     INPUT CHANGE
+  ========================= */
 
   const handleInputChange = (key, value) => {
     setFormData((prev) => ({
@@ -159,11 +216,20 @@ export default function App() {
     }));
   };
 
+  /* =========================
+     SUBMIT
+  ========================= */
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.hn || !formData.an || !formData.fullName) {
-      alert("กรุณากรอก HN / AN / ชื่อผู้ป่วย");
+    if (
+      !formData.hn ||
+      !formData.an ||
+      !formData.fullName
+    ) {
+      alert("กรุณากรอกข้อมูลให้ครบ");
+
       return;
     }
 
@@ -178,292 +244,75 @@ export default function App() {
 
       const response = await fetch(API_URL, {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      const json = await response.json();
 
-      if (result.status === "success") {
+      if (json.status === "success") {
         alert("บันทึกสำเร็จ");
 
         setFormData(createDefaultForm());
 
-        await fetchPatients();
+        fetchPatients();
 
         setView("registry");
       } else {
-        alert(result.message || "Save failed");
+        alert(json.message || "Save failed");
       }
     } catch (error) {
       console.error(error);
-      alert("Cannot connect API");
+
+      alert("เชื่อม API ไม่ได้");
     } finally {
       setLoading(false);
     }
   };
 
+  /* =========================
+     UI
+  ========================= */
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-900 text-white p-3 rounded-xl">
-              <Activity size={20} />
-            </div>
-
-            <div>
-              <h1 className="font-black text-slate-800">
-                Stroke Registry System
-              </h1>
-
-              <p className="text-xs text-slate-500">
-                Nopparat Rajathanee Hospital
-              </p>
-            </div>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <header className="bg-white p-4 md:p-6 flex justify-between items-center rounded-3xl shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-900 text-white p-3 rounded-xl">
+            <Activity size={20} />
           </div>
 
-          <button
-            onClick={() => setView("add")}
-            className="bg-blue-900 hover:bg-blue-800 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold"
-          >
-            <Plus size={16} />
-            เพิ่มผู้ป่วย
-          </button>
+          <div>
+            <h1 className="font-black text-sm text-slate-800">
+              Nopparat Rajathanee Hospital
+            </h1>
+
+            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+              Stroke Registry System
+            </p>
+          </div>
         </div>
+
+        <button
+          onClick={() => setView("add")}
+          className="bg-blue-900 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-bold"
+        >
+          <Plus size={14} />
+          เพิ่มผู้ป่วย
+        </button>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6">
-        {apiError && (
-          <div className="bg-red-100 border border-red-300 text-red-700 rounded-xl p-4 mb-6">
-            {apiError}
-          </div>
-        )}
-
-        {view === "dashboard" && (
-          <>
-            <div className="grid md:grid-cols-3 gap-4">
-              <Card title="ผู้ป่วยทั้งหมด" value={`${stats.total} ราย`} />
-
-              <Card
-                title="ได้รับ rt-PA"
-                value={`${stats.fastTrackCount} ราย`}
-              />
-
-              <Card
-                title="สถานะระบบ"
-                value={apiError ? "ออฟไลน์" : "ออนไลน์"}
-              />
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mt-6">
-              <h2 className="font-black text-lg mb-4">
-                Stroke Type Summary
-              </h2>
-
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats.pieData}
-                      dataKey="value"
-                      outerRadius={100}
-                    >
-                      {stats.pieData.map((_, index) => (
-                        <Cell
-                          key={index}
-                          fill={
-                            ["#1e3a8a", "#2563eb", "#60a5fa", "#93c5fd"][
-                              index % 4
-                            ]
-                          }
-                        />
-                      ))}
-                    </Pie>
-
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              <button
-                onClick={() => setView("registry")}
-                className="mt-6 w-full bg-blue-900 hover:bg-blue-800 text-white py-3 rounded-xl font-bold"
-              >
-                เปิด Registry
-              </button>
-            </div>
-          </>
-        )}
-
-        {view === "add" && (
-          <>
-            <button
-              onClick={() => setView("dashboard")}
-              className="flex items-center gap-2 text-blue-900 font-bold mb-6"
-            >
-              <ArrowLeft size={16} />
-              กลับ
-            </button>
-
-            <form
-              onSubmit={handleSubmit}
-              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-6"
-            >
-              <h2 className="text-xl font-black">Add Patient</h2>
-
-              <div className="grid md:grid-cols-3 gap-4">
-                <Input
-                  label="HN"
-                  required
-                  value={formData.hn}
-                  onChange={(v) => handleInputChange("hn", v)}
-                />
-
-                <Input
-                  label="AN"
-                  required
-                  value={formData.an}
-                  onChange={(v) => handleInputChange("an", v)}
-                />
-
-                <Input
-                  label="ชื่อผู้ป่วย"
-                  required
-                  value={formData.fullName}
-                  onChange={(v) => handleInputChange("fullName", v)}
-                />
-
-                <Input
-                  label="Age"
-                  type="number"
-                  value={formData.age}
-                  onChange={(v) => handleInputChange("age", v)}
-                />
-
-                <Input
-                  label="NIHSS"
-                  type="number"
-                  value={formData.nihss}
-                  onChange={(v) => handleInputChange("nihss", v)}
-                />
-
-                <Input
-                  label="Door to Needle Time"
-                  value={formData.doorToNeedleTime}
-                  onChange={(v) =>
-                    handleInputChange("doorToNeedleTime", v)
-                  }
-                />
-
-                <Input
-                  label="Thrombolysis"
-                  value={formData.thrombolysis}
-                  onChange={(v) =>
-                    handleInputChange("thrombolysis", v)
-                  }
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-900 hover:bg-blue-800 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Save size={16} />
-
-                {loading ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
-              </button>
-            </form>
-          </>
-        )}
-
-        {view === "registry" && (
-          <>
-            <button
-              onClick={() => setView("dashboard")}
-              className="flex items-center gap-2 text-blue-900 font-bold mb-6"
-            >
-              <ArrowLeft size={16} />
-              กลับ
-            </button>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h2 className="font-black">Registry</h2>
-
-                <div className="relative w-72">
-                  <Search
-                    size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="ค้นหาผู้ป่วย..."
-                    className="w-full bg-slate-50 rounded-xl pl-10 pr-4 py-2 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-6 py-4">HN / AN</th>
-                      <th className="px-6 py-4">ชื่อผู้ป่วย</th>
-                      <th className="px-6 py-4">Stroke Type</th>
-                      <th className="px-6 py-4">NIHSS</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredPatients.length > 0 ? (
-                      filteredPatients.map((p, index) => (
-                        <tr
-                          key={index}
-                          className="border-t border-slate-100 text-sm"
-                        >
-                          <td className="px-6 py-4">
-                            {p.hn}
-                            <br />
-                            <span className="text-slate-400">{p.an}</span>
-                          </td>
-
-                          <td className="px-6 py-4 font-bold">
-                            {p.fullName}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            {p.strokeType}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            {p.nihss}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan="4"
-                          className="text-center py-10 text-slate-400"
-                        >
-                          No patients found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
-      </main>
+      {apiError && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-xl mt-4">
+          <p className="text-red-600 font-bold">
+            API ERROR : {apiError}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
