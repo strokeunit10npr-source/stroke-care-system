@@ -2,24 +2,15 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Search,
-  Activity,
   Save,
   ChevronRight,
   Home,
   ArrowLeft,
 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
 
-const API_URL = https://script.google.com/macros/s/AKfycbyOdU9fk4vIvofSmGr0BAMXYB4qdxp_EWqasctBeve3CdPtNgDy8W7_wJldghqkvE6w/exec
-
-const APP_TOKEN = "stroke2026secure";
+const API_URL = process.env.REACT_APP_API_URL;
+const APP_TOKEN = process.env.REACT_APP_APP_TOKEN;
 
 const createDefaultForm = () => ({
   hn: "",
@@ -27,23 +18,13 @@ const createDefaultForm = () => ({
   fullName: "",
   age: "",
   gender: "ชาย",
-  diagnosis: "",
   strokeType: "Ischemic",
-  onsetTime: "",
-  arrivalTime: "",
-  doorToNeedleTime: "",
   nihss: "",
-  ctBrainResult: "",
+  doorToNeedleTime: "",
   thrombolysis: "ไม่ได้ให้",
-  thrombectomy: "ไม่ได้ทำ",
   admitDate: new Date().toISOString().split("T")[0],
   dischargeDate: "",
   outcome: "กำลังรักษา",
-  complication: "ไม่มี",
-  riskFactors: "",
-  followUp: "",
-  doctor: "",
-  nurse: "",
   remark: "",
 });
 
@@ -60,39 +41,15 @@ function Input({ label, value, onChange, required = false, type = "text" }) {
   return (
     <div>
       <label className="text-[10px] uppercase font-black text-slate-400">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {label}{required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <input
         type={type}
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-2 border-2 border-slate-100 rounded-xl p-3 bg-slate-50 text-sm outline-none focus:border-blue-500 transition"
+        className="w-full mt-2 border-2 border-slate-100 rounded-xl p-3 bg-slate-50 text-sm outline-none"
       />
-    </div>
-  );
-}
-
-function Select({ label, value, onChange, options, required = false }) {
-  return (
-    <div>
-      <label className="text-[10px] uppercase font-black text-slate-400">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      <select
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-2 border-2 border-slate-100 rounded-xl p-3 bg-slate-50 text-sm outline-none focus:border-blue-500 transition"
-      >
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }
@@ -105,59 +62,28 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState(createDefaultForm());
 
-  const safeJsonFetch = async (url, options = {}) => {
-    try {
-      const response = await fetch(url, options);
-      const text = await response.text();
-
-      if (!response.ok) {
-        throw new Error(text || `HTTP ${response.status}`);
-      }
-
-      if (!text) {
-        return { status: "success", data: [] };
-      }
-
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new Error("Invalid JSON response");
-      }
-    } catch (error) {
-      setApiError(error.message);
-      throw error;
-    }
-  };
-
   const fetchPatients = async () => {
-    if (!API_URL) {
-      setApiError("API_URL not configured");
-      return;
-    }
+    if (!API_URL) return setApiError("API URL not set");
 
     setLoading(true);
     setApiError(null);
 
     try {
-      const params = new URLSearchParams({
-        action: "getPatients",
-      });
+      const params = new URLSearchParams({ action: "getPatients" });
+      if (APP_TOKEN) params.append("token", APP_TOKEN);
 
-      if (APP_TOKEN) {
-        params.append("token", APP_TOKEN);
-      }
+      const res = await fetch(`${API_URL}?${params.toString()}`);
+      const json = await res.json();
 
-      const result = await safeJsonFetch(`${API_URL}?${params.toString()}`);
-
-      if (result.status === "success") {
-        setPatients(Array.isArray(result.data) ? result.data : []);
+      if (json.status === "success") {
+        setPatients(json.data || []);
       } else {
-        setApiError(result.message || "Failed to fetch patients");
+        setApiError(json.message || "Failed to fetch patients");
         setPatients([]);
       }
-    } catch (error) {
-      console.error("Fetch error:", error.message);
-      setApiError("Unable to connect to API. Check your internet connection.");
+    } catch (err) {
+      console.error(err);
+      setApiError("Cannot connect to API");
       setPatients([]);
     } finally {
       setLoading(false);
@@ -170,387 +96,172 @@ export default function App() {
 
   const stats = useMemo(() => {
     const total = patients.length;
-
-    const fastTrackCount = patients.filter(
-      (patient) => patient?.thrombolysis === "ให้ rt-PA"
-    ).length;
-
-    const typeMap = patients.reduce((acc, patient) => {
-      const type = patient?.strokeType || "ไม่ระบุ";
-      acc[type] = (acc[type] || 0) + 1;
+    const fastTrackCount = patients.filter(p => p.thrombolysis === "ให้ rt-PA").length;
+    const typeMap = patients.reduce((acc, p) => {
+      const t = p.strokeType || "ไม่ระบุ";
+      acc[t] = (acc[t] || 0) + 1;
       return acc;
     }, {});
-
-    const pieData = Object.keys(typeMap).map((key) => ({
-      name: key,
-      value: typeMap[key],
-    }));
-
-    return {
-      total,
-      fastTrackCount,
-      pieData,
-    };
+    const pieData = Object.keys(typeMap).map(k => ({ name: k, value: typeMap[k] }));
+    return { total, fastTrackCount, pieData };
   }, [patients]);
 
   const filteredPatients = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-
-    if (!keyword) {
-      return patients;
-    }
-
-    return patients.filter((patient) => {
-      const name = (patient?.fullName || patient?.patientName || "")
-        .toString()
-        .toLowerCase();
-      const hn = (patient?.hn || "").toString().toLowerCase();
-      const an = (patient?.an || "").toString().toLowerCase();
-
-      return (
-        name.includes(keyword) ||
-        hn.includes(keyword) ||
-        an.includes(keyword)
-      );
-    });
+    const keyword = searchTerm.toLowerCase().trim();
+    if (!keyword) return patients;
+    return patients.filter(p => 
+      (p.fullName || "").toLowerCase().includes(keyword) ||
+      (p.hn || "").toLowerCase().includes(keyword) ||
+      (p.an || "").toLowerCase().includes(keyword)
+    );
   }, [patients, searchTerm]);
 
   const handleInputChange = (key, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    if (!formData.hn.trim() || !formData.an.trim() || !formData.fullName.trim()) {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.hn || !formData.an || !formData.fullName) {
       alert("กรุณากรอก HN, AN และชื่อผู้ป่วยให้ครบ");
       return;
     }
 
     setLoading(true);
-    setApiError(null);
-
     try {
-      const payload = {
-        action: "addPatient",
-        ...formData,
-      };
+      const payload = { action: "addPatient", ...formData };
+      if (APP_TOKEN) payload.token = APP_TOKEN;
 
-      if (APP_TOKEN) {
-        payload.token = APP_TOKEN;
-      }
-
-      const result = await safeJsonFetch(API_URL, {
+      const res = await fetch(API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const json = await res.json();
 
-      if (result.status === "success") {
-        alert("บันทึกข้อมูลสำเร็จ");
+      if (json.status === "success") {
+        alert("บันทึกสำเร็จ");
         setFormData(createDefaultForm());
         await fetchPatients();
         setView("registry");
       } else {
-        alert(result.message || "เกิดข้อผิดพลาดจาก API");
+        alert(json.message || "API error");
       }
-    } catch (error) {
-      console.error("Save error:", error.message);
-      alert("บันทึกข้อมูลไม่สำเร็จ กรุณาตรวจสอบ API");
+    } catch (err) {
+      console.error(err);
+      alert("ไม่สามารถเชื่อมต่อ API");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-900 text-white p-3 rounded-xl">
-              <Activity size={20} />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="font-black text-sm text-slate-800">
-                Nopparat Rajathanee Hospital
-              </h1>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-                Stroke Registry System
-              </p>
-            </div>
+    <div className="min-h-screen bg-slate-50 font-sans p-4 md:p-8">
+      <header className="bg-white p-4 md:p-6 flex justify-between items-center shadow-sm border-b border-slate-200 sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-900 text-white p-3 rounded-xl"><Activity size={20} /></div>
+          <div>
+            <h1 className="font-black text-sm text-slate-800">Nopparat Rajathanee Hospital</h1>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Stroke Registry System</p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setView("add")}
-            className="bg-blue-900 text-white px-4 md:px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-blue-800 transition"
-          >
-            <Plus size={14} />
-            <span className="hidden sm:inline">รับผู้ป่วยใหม่</span>
-            <span className="sm:hidden">เพิ่ม</span>
-          </button>
         </div>
+        <button onClick={() => setView("add")} className="bg-blue-900 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-bold hover:bg-blue-800 transition">
+          <Plus size={14} /> เพิ่มผู้ป่วย
+        </button>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
-        {/* Breadcrumb */}
-        <div className="text-[10px] uppercase font-black text-slate-400 flex items-center gap-1">
-          <Home size={10} />
-          Home
-          <ChevronRight size={10} />
-          <span className="capitalize">{view}</span>
+      {apiError && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-xl mt-4">
+          <p className="text-red-600 font-bold">API Error: {apiError}</p>
         </div>
+      )}
 
-        {/* Error Alert */}
-        {apiError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-            <div className="flex-1">
-              <p className="text-sm font-bold text-red-800">API Error</p>
-              <p className="text-xs text-red-600 mt-1">{apiError}</p>
-            </div>
-            <button
-              onClick={() => setApiError(null)}
-              className="text-red-600 hover:text-red-800"
-            >
-              ✕
-            </button>
+      {view === "dashboard" && (
+        <div className="mt-6 space-y-6">
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card title="ผู้ป่วยสะสม" value={`${stats.total} ราย`} />
+            <Card title="ได้รับ rt-PA" value={`${stats.fastTrackCount} ราย`} />
+            <Card title="สถานะระบบ" value={apiError ? "ออฟไลน์" : "ออนไลน์"} />
           </div>
-        )}
 
-        {view === "dashboard" && (
-          <>
+          {stats.pieData.length > 0 && (
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mt-4">
+              <h2 className="font-black text-sm mb-4">Stroke Type Summary</h2>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={stats.pieData} dataKey="value" innerRadius={60} outerRadius={90} paddingAngle={4}>
+                      {stats.pieData.map((_, i) => <Cell key={i} fill={["#1e3a8a","#2563eb","#60a5fa","#93c5fd"][i % 4]} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {view === "add" && (
+        <div className="mt-6">
+          <button onClick={() => setView("dashboard")} className="text-blue-900 flex items-center gap-2 mb-4"><ArrowLeft size={16}/> Back</button>
+          <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+            <h2 className="font-black text-lg">Add Patient</h2>
             <div className="grid md:grid-cols-3 gap-4">
-              <Card title="ผู้ป่วยสะสม" value={`${stats.total} ราย`} />
-              <Card title="ได้รับ rt-PA" value={`${stats.fastTrackCount} ราย`} />
-              <Card title="สถานะระบบ" value={apiError ? "ออฟไลน์" : "ออนไลน์"} />
+              <Input label="HN" value={formData.hn} required onChange={v => handleInputChange("hn", v)} />
+              <Input label="AN" value={formData.an} required onChange={v => handleInputChange("an", v)} />
+              <Input label="ชื่อผู้ป่วย" value={formData.fullName} required onChange={v => handleInputChange("fullName", v)} />
+              <Input label="Age" type="number" value={formData.age} onChange={v => handleInputChange("age", v)} />
+              <Input label="NIHSS" type="number" value={formData.nihss} onChange={v => handleInputChange("nihss", v)} />
+              <Input label="Door to Needle Time" value={formData.doorToNeedleTime} onChange={v => handleInputChange("doorToNeedleTime", v)} />
+              <Input label="Thrombolysis" value={formData.thrombolysis} onChange={v => handleInputChange("thrombolysis", v)} />
             </div>
-
-            {stats.pieData.length > 0 ? (
-              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-                <h2 className="font-black text-sm mb-6">Stroke Type Summary</h2>
-                <div className="h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.pieData}
-                        dataKey="value"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={4}
-                      >
-                        {stats.pieData.map((_, index) => (
-                          <Cell
-                            key={index}
-                            fill={[
-                              "#1e3a8a",
-                              "#2563eb",
-                              "#60a5fa",
-                              "#93c5fd",
-                            ][index % 4]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm text-center">
-                <p className="text-slate-500">No patient data available</p>
-              </div>
-            )}
-
-            <button
-              onClick={() => setView("registry")}
-              className="w-full bg-blue-900 text-white px-8 py-3 rounded-xl text-sm font-bold hover:bg-blue-800 transition"
-            >
-              View Registry
+            <button type="submit" disabled={loading} className="w-full bg-blue-900 text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-800 disabled:opacity-50 transition">
+              <Save size={14}/> {loading ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
             </button>
-          </>
-        )}
+          </form>
+        </div>
+      )}
 
-        {view === "add" && (
-          <>
-            <button
-              onClick={() => setView("dashboard")}
-              className="flex items-center gap-2 text-blue-900 hover:text-blue-800 font-bold mb-4"
-            >
-              <ArrowLeft size={16} />
-              Back
-            </button>
-
-            <form
-              onSubmit={handleSubmit}
-              className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 md:p-8 space-y-6"
-            >
-              <h2 className="font-black text-lg">Add Patient</h2>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                <Input
-                  label="HN"
-                  value={formData.hn}
-                  required
-                  onChange={(value) => handleInputChange("hn", value)}
-                />
-
-                <Input
-                  label="AN"
-                  value={formData.an}
-                  required
-                  onChange={(value) => handleInputChange("an", value)}
-                />
-
-                <Input
-                  label="ชื่อผู้ป่วย"
-                  value={formData.fullName}
-                  required
-                  onChange={(value) => handleInputChange("fullName", value)}
-                />
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                <Input
-                  label="Age"
-                  type="number"
-                  value={formData.age}
-                  onChange={(value) => handleInputChange("age", value)}
-                />
-
-                <Select
-                  label="Gender"
-                  value={formData.gender}
-                  onChange={(value) => handleInputChange("gender", value)}
-                  options={["ชาย", "หญิง"]}
-                />
-
-                <Input
-                  label="Diagnosis"
-                  value={formData.diagnosis}
-                  onChange={(value) => handleInputChange("diagnosis", value)}
-                />
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                <Select
-                  label="Stroke Type"
-                  value={formData.strokeType}
-                  onChange={(value) => handleInputChange("strokeType", value)}
-                  options={["Ischemic", "Hemorrhagic", "TIA"]}
-                />
-
-                <Input
-                  label="NIHSS"
-                  type="number"
-                  value={formData.nihss}
-                  onChange={(value) => handleInputChange("nihss", value)}
-                />
-
-                <Input
-                  label="Admit Date"
-                  type="date"
-                  value={formData.admitDate}
-                  onChange={(value) => handleInputChange("admitDate", value)}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-900 text-white px-8 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-800 disabled:opacity-50 transition"
-              >
-                <Save size={14} />
-                {loading ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
-              </button>
-            </form>
-          </>
-        )}
-
-        {view === "registry" && (
-          <>
-            <button
-              onClick={() => setView("dashboard")}
-              className="flex items-center gap-2 text-blue-900 hover:text-blue-800 font-bold mb-4"
-            >
-              <ArrowLeft size={16} />
-              Back
-            </button>
-
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <h2 className="font-black text-sm">Registry</h2>
-
-                <div className="relative w-full md:w-72">
-                  <Search
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="ค้นหาผู้ป่วย..."
-                    className="w-full bg-slate-50 rounded-xl pl-9 pr-4 py-2 text-xs font-bold outline-none focus:border-2 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 text-[10px] uppercase text-slate-400 font-black sticky top-0">
-                    <tr>
-                      <th className="px-4 md:px-6 py-4">HN / AN</th>
-                      <th className="px-4 md:px-6 py-4">ชื่อผู้ป่วย</th>
-                      <th className="px-4 md:px-6 py-4">Stroke Type</th>
-                      <th className="px-4 md:px-6 py-4">NIHSS</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredPatients.length > 0 ? (
-                      filteredPatients.map((patient, index) => (
-                        <tr
-                          key={`${patient?.hn || "row"}-${index}`}
-                          className="border-t border-slate-50 text-xs hover:bg-slate-50 transition"
-                        >
-                          <td className="px-4 md:px-6 py-4">
-                            {patient?.hn || "-"}
-                            <br />
-                            <span className="text-slate-400">{patient?.an || "-"}</span>
-                          </td>
-                          <td className="px-4 md:px-6 py-4 font-bold">
-                            {patient?.fullName || patient?.patientName || "-"}
-                          </td>
-                          <td className="px-4 md:px-6 py-4">
-                            {patient?.strokeType || "-"}
-                          </td>
-                          <td className="px-4 md:px-6 py-4">
-                            {patient?.nihss || "-"}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan="4"
-                          className="px-4 md:px-6 py-8 text-center text-slate-400"
-                        >
-                          No patients found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+      {view === "registry" && (
+        <div className="mt-6">
+          <button onClick={() => setView("dashboard")} className="text-blue-900 flex items-center gap-2 mb-4"><ArrowLeft size={16}/> Back</button>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-x-auto">
+            <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="font-black text-sm">Registry</h2>
+              <div className="relative w-72">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="ค้นหาผู้ป่วย..." className="w-full bg-slate-50 rounded-xl pl-9 pr-4 py-2 text-xs font-bold outline-none focus:border-2 focus:border-blue-500"/>
               </div>
             </div>
-          </>
-        )}
-      </main>
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-[10px] uppercase text-slate-400 font-black sticky top-0">
+                <tr>
+                  <th className="px-4 md:px-6 py-4">HN / AN</th>
+                  <th className="px-4 md:px-6 py-4">ชื่อผู้ป่วย</th>
+                  <th className="px-4 md:px-6 py-4">Stroke Type</th>
+                  <th className="px-4 md:px-6 py-4">NIHSS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPatients.length > 0 ? filteredPatients.map((p, i) => (
+                  <tr key={`${p.hn || "row"}-${i}`} className="border-t border-slate-50 text-xs hover:bg-slate-50 transition">
+                    <td className="px-4 md:px-6 py-4">{p.hn || "-"}<br/><span className="text-slate-400">{p.an || "-"}</span></td>
+                    <td className="px-4 md:px-6 py-4 font-bold">{p.fullName || "-"}</td>
+                    <td className="px-4 md:px-6 py-4">{p.strokeType || "-"}</td>
+                    <td className="px-4 md:px-6 py-4">{p.nihss || "-"}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 md:px-6 py-8 text-center text-slate-400">No patients found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
