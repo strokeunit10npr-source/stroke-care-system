@@ -19,9 +19,11 @@ import {
 /* =========================
    CONFIG
 ========================= */
-
 const API_URL =
   "https://script.google.com/macros/s/AKfycbydW5yLKFKGrKXO_Zl9WhYpJY2wAcCwRNX5oBZhuD756FObJ2-TCpXn0W1WCzKJwJ0Y/exec";
+
+const APP_TOKEN = "stroke2026secure";
+
 
 /* =========================
    DEFAULT FORM
@@ -120,33 +122,30 @@ export default function App() {
      FETCH PATIENTS
   ========================= */
 
-  const fetchPatients = async () => {
-    setLoading(true);
-    setApiError(null);
+ const fetchPatients = async () => {
+  setLoading(true);
+  setApiError(null);
 
-    try {
-      const response = await fetch(
-        `${API_URL}?action=getPatients`
-      );
+  try {
+    // GET ต้องมี token
+    const response = await fetch(
+      `${API_URL}?action=getPatients&token=${APP_TOKEN}`
+    );
 
-      const json = await response.json();
+    const json = await response.json();
 
-      if (json.status === "success") {
-        setPatients(json.data || []);
-      } else {
-        setApiError(json.message || "API ERROR");
-      }
-    } catch (error) {
-      console.error(error);
-      setApiError("Cannot connect API");
-    } finally {
-      setLoading(false);
+    if (json.status === "success") {
+      setPatients(json.data || []);
+    } else {
+      setApiError(json.message || "API ERROR");
     }
-  };
-
-  useEffect(() => {
-    fetchPatients();
-  }, []);
+  } catch (error) {
+    console.error("fetchPatients error:", error);
+    setApiError("Cannot connect API");
+  } finally {
+    setLoading(false);
+  }
+};
 
   /* =========================
      STATS
@@ -222,56 +221,59 @@ export default function App() {
      SUBMIT
   ========================= */
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (
-      !formData.hn ||
-      !formData.an ||
-      !formData.fullName
-    ) {
-      alert("กรุณากรอกข้อมูลให้ครบ");
-      return;
+  if (
+    !formData.hn ||
+    !formData.an ||
+    !formData.fullName
+  ) {
+    alert("กรุณากรอกข้อมูลให้ครบ");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    /*
+      POST ต้องมี token
+      ใช้ URLSearchParams
+      ห้ามใช้ JSON.stringify
+      เพื่อหลีกเลี่ยง CORS
+    */
+
+    const params = new URLSearchParams({
+      action: "addPatient",
+      token: APP_TOKEN,
+      ...formData,
+    });
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: params,
+    });
+
+    const json = await response.json();
+
+    if (json.status === "success") {
+      alert("บันทึกสำเร็จ");
+
+      setFormData(createDefaultForm());
+
+      await fetchPatients();
+
+      setView("registry");
+    } else {
+      alert(json.message || "Save failed");
     }
-
-    setLoading(true);
-
-    try {
-      /* สำคัญมาก:
-         ใช้ URLSearchParams
-         ห้ามใช้ JSON.stringify
-         เพื่อแก้ CORS
-      */
-
-     const params = new URLSearchParams({
-  action: "addPatient",
-  ...formData,
-});
-
-const response = await fetch(API_URL, {
-  method: "POST",
-  body: params,
-});
-      const json = await response.json();
-
-      if (json.status === "success") {
-        alert("บันทึกสำเร็จ");
-
-        setFormData(createDefaultForm());
-
-        await fetchPatients();
-
-        setView("registry");
-      } else {
-        alert(json.message || "Save failed");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("เชื่อม API ไม่ได้");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    console.error("handleSubmit error:", error);
+    alert("เชื่อม API ไม่ได้");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
