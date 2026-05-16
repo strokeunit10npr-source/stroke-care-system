@@ -1,230 +1,227 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
-/* =========================
-   ICONS
-========================= */
+const API_URL =
+  "https://script.google.com/macros/s/AKfycbw3YTAI5oFaNpPOZfBnSxeSOX5QmwcaLL-6sT3J5QyVqunpTVZ9GUqyWJgdZHPQg3j0aQ/exec";
 
-const ICONS = {
-  activity: "🫀",
-  analytics: "📊",
-  registry: "📋",
-  users: "👥",
-  report: "📄",
-};
+const APP_TOKEN = "stroke2026secure";
 
-/* =========================
-   SIMPLE CARD
-========================= */
+export default function App() {
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-function Card({ children, className = "" }) {
+  const [formData, setFormData] = useState({
+    hn: "",
+    an: "",
+    fullName: "",
+    age: "",
+    gender: "ชาย",
+    strokeType: "Ischemic",
+    nihss: "",
+    thrombolysis: "ไม่ได้ให้",
+    admitDate: new Date().toISOString().split("T")[0],
+    remark: "",
+  });
+
+  /* =========================
+     FETCH PATIENTS
+  ========================= */
+
+  const fetchPatients = async () => {
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}?action=getPatients&token=${APP_TOKEN}`
+      );
+
+      const json = await response.json();
+
+      if (json.status === "success") {
+        setPatients(json.data || []);
+      } else {
+        alert(json.message || "API Error");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Cannot connect API");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  /* =========================
+     INPUT CHANGE
+  ========================= */
+
+  const handleChange = (key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  /* =========================
+     SUBMIT
+  ========================= */
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (
+      !formData.hn ||
+      !formData.an ||
+      !formData.fullName
+    ) {
+      alert("กรุณากรอก HN / AN / Full Name");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const params = new URLSearchParams({
+        action: "addPatient",
+        token: APP_TOKEN,
+        ...formData,
+      });
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: params,
+      });
+
+      const json = await response.json();
+
+      if (json.status === "success") {
+        alert("บันทึกสำเร็จ");
+
+        setFormData({
+          hn: "",
+          an: "",
+          fullName: "",
+          age: "",
+          gender: "ชาย",
+          strokeType: "Ischemic",
+          nihss: "",
+          thrombolysis: "ไม่ได้ให้",
+          admitDate: new Date().toISOString().split("T")[0],
+          remark: "",
+        });
+
+        fetchPatients();
+      } else {
+        alert(json.message || "Save failed");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Cannot connect API");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div
-      className={`bg-white rounded-3xl shadow-sm border border-slate-100 ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
+    <div className="min-h-screen bg-slate-50 p-8">
+      <div className="max-w-6xl mx-auto">
 
-function CardContent({ children, className = "" }) {
-  return <div className={className}>{children}</div>;
-}
+        <h1 className="text-3xl font-bold mb-8">
+          Stroke Registry System
+        </h1>
 
-/* =========================
-   SIMPLE BUTTON
-========================= */
+        {/* FORM */}
 
-function Button({
-  children,
-  className = "",
-  variant = "default",
-}) {
-  const base =
-    "px-5 py-3 rounded-2xl font-semibold transition-all";
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-6 rounded-2xl shadow-sm mb-8 space-y-4"
+        >
+          <h2 className="text-xl font-bold">
+            เพิ่มผู้ป่วย
+          </h2>
 
-  const styles =
-    variant === "outline"
-      ? "border border-slate-300 bg-white hover:bg-slate-50"
-      : "bg-slate-900 text-white hover:opacity-90";
+          <input
+            placeholder="HN"
+            value={formData.hn}
+            onChange={(e) =>
+              handleChange("hn", e.target.value)
+            }
+            className="w-full border p-3 rounded-xl"
+          />
 
-  return (
-    <button className={`${base} ${styles} ${className}`}>
-      {children}
-    </button>
-  );
-}
+          <input
+            placeholder="AN"
+            value={formData.an}
+            onChange={(e) =>
+              handleChange("an", e.target.value)
+            }
+            className="w-full border p-3 rounded-xl"
+          />
 
-/* =========================
-   FEATURE ITEM
-========================= */
+          <input
+            placeholder="Full Name"
+            value={formData.fullName}
+            onChange={(e) =>
+              handleChange("fullName", e.target.value)
+            }
+            className="w-full border p-3 rounded-xl"
+          />
 
-function FeatureItem({ icon, text }) {
-  return (
-    <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50">
-      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl">
-        {icon}
-      </div>
+          <input
+            placeholder="Age"
+            value={formData.age}
+            onChange={(e) =>
+              handleChange("age", e.target.value)
+            }
+            className="w-full border p-3 rounded-xl"
+          />
 
-      <p className="font-medium">{text}</p>
-    </div>
-  );
-}
+          <button
+            type="submit"
+            className="bg-slate-900 text-white px-6 py-3 rounded-xl"
+          >
+            {loading ? "Saving..." : "บันทึกข้อมูล"}
+          </button>
+        </form>
 
-/* =========================
-   MAIN APP
-========================= */
+        {/* TABLE */}
 
-export default function StrokeRegistryProWebsite() {
-  const stats = [
-    {
-      title: "ผู้ป่วยทั้งหมด",
-      value: "1,248",
-      icon: ICONS.users,
-    },
-    {
-      title: "ASA Compliance",
-      value: "92.4%",
-      icon: ICONS.activity,
-    },
-    {
-      title: "ภาวะแทรกซ้อน",
-      value: "38",
-      icon: ICONS.analytics,
-    },
-    {
-      title: "รายงานวิจัย",
-      value: "12",
-      icon: ICONS.report,
-    },
-  ];
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          <h2 className="text-xl font-bold mb-4">
+            รายชื่อผู้ป่วย
+          </h2>
 
-  const features = [
-    {
-      icon: ICONS.registry,
-      text: "Stroke Registry ครบวงจร",
-    },
-    {
-      icon: ICONS.analytics,
-      text: "KPI Dashboard และ Analytics",
-    },
-    {
-      icon: ICONS.report,
-      text: "Annual Report และ Executive Summary",
-    },
-    {
-      icon: ICONS.users,
-      text: "Export ข้อมูลสำหรับงานวิจัย",
-    },
-  ];
+          <table className="w-full">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="py-2">HN</th>
+                <th>AN</th>
+                <th>ชื่อ</th>
+                <th>อายุ</th>
+                <th>Stroke Type</th>
+              </tr>
+            </thead>
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* HEADER */}
-
-      <header className="bg-slate-900 text-white px-8 py-6 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-2xl">
-              {ICONS.activity}
-            </div>
-
-            <div>
-              <h1 className="text-2xl font-bold">
-                Stroke Registry Pro
-              </h1>
-
-              <p className="text-sm text-slate-300">
-                ระบบดูแลผู้ป่วยโรคหลอดเลือดสมองระดับโรงพยาบาล
-              </p>
-            </div>
-          </div>
-
-          <Button>เข้าสู่ระบบ</Button>
+            <tbody>
+              {patients.map((p, index) => (
+                <tr
+                  key={index}
+                  className="border-b"
+                >
+                  <td className="py-2">{p.hn}</td>
+                  <td>{p.an}</td>
+                  <td>{p.fullName}</td>
+                  <td>{p.age}</td>
+                  <td>{p.strokeType}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </header>
 
-      {/* MAIN */}
-
-      <main className="max-w-7xl mx-auto px-8 py-10 space-y-10">
-        {/* HERO */}
-
-        <section className="grid md:grid-cols-2 gap-8 items-center">
-          <div>
-            <p className="text-indigo-600 font-semibold mb-2">
-              Professional Research Dashboard
-            </p>
-
-            <h2 className="text-4xl font-bold leading-tight mb-4">
-              ระบบ Stroke Registry พร้อม Analytics
-              และ Executive Summary
-            </h2>
-
-            <p className="text-slate-600 mb-6 leading-relaxed">
-              ใช้สำหรับติดตามผู้ป่วย วิเคราะห์ KPI
-              สรุปรายงานประจำปี
-              สนับสนุนงานวิจัยทางคลินิก
-              และการนำเสนอข้อมูลระดับผู้บริหาร
-            </p>
-
-            <div className="flex gap-4 flex-wrap">
-              <Button>เริ่มใช้งาน</Button>
-
-              <Button variant="outline">
-                ดูรายงาน
-              </Button>
-            </div>
-          </div>
-
-          {/* FEATURES */}
-
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-8">
-              <h3 className="text-xl font-bold mb-6">
-                ฟีเจอร์หลัก
-              </h3>
-
-              <div className="space-y-4">
-                {features.map((feature) => (
-                  <FeatureItem
-                    key={feature.text}
-                    icon={feature.icon}
-                    text={feature.text}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* STATS */}
-
-        <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((item) => (
-            <Card
-              key={item.title}
-              className="hover:shadow-md transition-all"
-            >
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm text-slate-500">
-                      {item.title}
-                    </p>
-
-                    <h3 className="text-3xl font-bold mt-2">
-                      {item.value}
-                    </h3>
-                  </div>
-
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl">
-                    {item.icon}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-      </main>
+      </div>
     </div>
   );
 }
