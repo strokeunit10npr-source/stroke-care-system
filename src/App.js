@@ -1,51 +1,46 @@
 import React, { useState, useEffect } from "react";
 
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbw3YTAI5oFaNpPOZfBnSxeSOX5QmwcaLL-6sT3J5QyVqunpTVZ9GUqyWJgdZHPQg3j0aQ/exec";
+  "https://script.google.com/macros/s/AKfycbwlDLKbLNRZ0dLKp5Qh9ira4yfhrVQ9DGAQGP2zMdEo18AkEvYJu9Ahc5gTcvPNgYU8EQ/exec";
 
-const APP_TOKEN = "stroke2026secure";
-
-export default function App() {
+function App() {
   const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     hn: "",
     an: "",
     fullName: "",
     age: "",
     gender: "ชาย",
+    diagnosis: "",
     strokeType: "Ischemic",
+    onsetTime: "",
+    arrivalTime: "",
+    doorToNeedleTime: "",
     nihss: "",
+    ctBrainResult: "",
     thrombolysis: "ไม่ได้ให้",
-    admitDate: new Date().toISOString().split("T")[0],
-    remark: "",
+    thrombectomy: "ไม่ได้ทำ",
+    admitDate: "",
+    dischargeDate: "",
+    outcome: "กำลังรักษา",
+    complication: "",
+    riskFactors: "",
+    followUp: "",
+    doctor: "",
+    nurse: "",
+    remark: ""
   });
 
-  /* =========================
-     FETCH PATIENTS
-  ========================= */
-
   const fetchPatients = async () => {
-    setLoading(true);
-
     try {
-      const response = await fetch(
-        `${API_URL}?action=getPatients&token=${APP_TOKEN}`
-      );
-
-      const json = await response.json();
+      const res = await fetch(`${API_URL}?action=getPatients`);
+      const json = await res.json();
 
       if (json.status === "success") {
         setPatients(json.data || []);
-      } else {
-        alert(json.message || "API Error");
       }
-    } catch (error) {
-      console.error(error);
-      alert("Cannot connect API");
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -53,175 +48,112 @@ export default function App() {
     fetchPatients();
   }, []);
 
-  /* =========================
-     INPUT CHANGE
-  ========================= */
-
   const handleChange = (key, value) => {
-    setFormData((prev) => ({
+    setForm((prev) => ({
       ...prev,
-      [key]: value,
+      [key]: value
     }));
   };
-
-  /* =========================
-     SUBMIT
-  ========================= */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !formData.hn ||
-      !formData.an ||
-      !formData.fullName
-    ) {
-      alert("กรุณากรอก HN / AN / Full Name");
-      return;
-    }
+    const params = new URLSearchParams({
+      action: "addPatient",
+      ...form
+    });
 
-    setLoading(true);
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: params
+    });
 
-    try {
-      const params = new URLSearchParams({
-        action: "addPatient",
-        token: APP_TOKEN,
-        ...formData,
-      });
+    const json = await res.json();
 
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: params,
-      });
-
-      const json = await response.json();
-
-      if (json.status === "success") {
-        alert("บันทึกสำเร็จ");
-
-        setFormData({
-          hn: "",
-          an: "",
-          fullName: "",
-          age: "",
-          gender: "ชาย",
-          strokeType: "Ischemic",
-          nihss: "",
-          thrombolysis: "ไม่ได้ให้",
-          admitDate: new Date().toISOString().split("T")[0],
-          remark: "",
-        });
-
-        fetchPatients();
-      } else {
-        alert(json.message || "Save failed");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Cannot connect API");
-    } finally {
-      setLoading(false);
+    if (json.status === "success") {
+      alert("บันทึกสำเร็จ");
+      fetchPatients();
+    } else {
+      alert(json.message);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-6xl mx-auto">
+    <div style={{ padding: 30 }}>
+      <h1>Stroke Registry System</h1>
 
-        <h1 className="text-3xl font-bold mb-8">
-          Stroke Registry System
-        </h1>
+      <form onSubmit={handleSubmit}>
+        <input
+          placeholder="HN"
+          value={form.hn}
+          onChange={(e) =>
+            handleChange("hn", e.target.value)
+          }
+        />
 
-        {/* FORM */}
+        <input
+          placeholder="AN"
+          value={form.an}
+          onChange={(e) =>
+            handleChange("an", e.target.value)
+          }
+        />
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-2xl shadow-sm mb-8 space-y-4"
+        <input
+          placeholder="Full Name"
+          value={form.fullName}
+          onChange={(e) =>
+            handleChange("fullName", e.target.value)
+          }
+        />
+
+        <select
+          value={form.gender}
+          onChange={(e) =>
+            handleChange("gender", e.target.value)
+          }
         >
-          <h2 className="text-xl font-bold">
-            เพิ่มผู้ป่วย
-          </h2>
+          <option>ชาย</option>
+          <option>หญิง</option>
+        </select>
 
-          <input
-            placeholder="HN"
-            value={formData.hn}
-            onChange={(e) =>
-              handleChange("hn", e.target.value)
-            }
-            className="w-full border p-3 rounded-xl"
-          />
+        <select
+          value={form.strokeType}
+          onChange={(e) =>
+            handleChange("strokeType", e.target.value)
+          }
+        >
+          <option>Ischemic</option>
+          <option>Hemorrhagic</option>
+          <option>TIA</option>
+        </select>
 
-          <input
-            placeholder="AN"
-            value={formData.an}
-            onChange={(e) =>
-              handleChange("an", e.target.value)
-            }
-            className="w-full border p-3 rounded-xl"
-          />
+        <select
+          value={form.thrombolysis}
+          onChange={(e) =>
+            handleChange("thrombolysis", e.target.value)
+          }
+        >
+          <option>ไม่ได้ให้</option>
+          <option>ให้ rt-PA</option>
+        </select>
 
-          <input
-            placeholder="Full Name"
-            value={formData.fullName}
-            onChange={(e) =>
-              handleChange("fullName", e.target.value)
-            }
-            className="w-full border p-3 rounded-xl"
-          />
+        <button type="submit">
+          Save Patient
+        </button>
+      </form>
 
-          <input
-            placeholder="Age"
-            value={formData.age}
-            onChange={(e) =>
-              handleChange("age", e.target.value)
-            }
-            className="w-full border p-3 rounded-xl"
-          />
+      <hr />
 
-          <button
-            type="submit"
-            className="bg-slate-900 text-white px-6 py-3 rounded-xl"
-          >
-            {loading ? "Saving..." : "บันทึกข้อมูล"}
-          </button>
-        </form>
+      <h2>Patient List</h2>
 
-        {/* TABLE */}
-
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="text-xl font-bold mb-4">
-            รายชื่อผู้ป่วย
-          </h2>
-
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="py-2">HN</th>
-                <th>AN</th>
-                <th>ชื่อ</th>
-                <th>อายุ</th>
-                <th>Stroke Type</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {patients.map((p, index) => (
-                <tr
-                  key={index}
-                  className="border-b"
-                >
-                  <td className="py-2">{p.hn}</td>
-                  <td>{p.an}</td>
-                  <td>{p.fullName}</td>
-                  <td>{p.age}</td>
-                  <td>{p.strokeType}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {patients.map((p, i) => (
+        <div key={i}>
+          {p["Full Name"]} | HN: {p["HN"]} | Stroke: {p["Stroke Type"]}
         </div>
-
-      </div>
+      ))}
     </div>
   );
 }
+
+export default App;
