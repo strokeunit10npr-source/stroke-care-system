@@ -243,16 +243,15 @@ export default function App() {
          เพื่อแก้ CORS
       */
 
-      const params = new URLSearchParams({
-        action: "addPatient",
-        ...formData,
-      });
+     const params = new URLSearchParams({
+  action: "addPatient",
+  ...formData,
+});
 
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: params,
-      });
-
+const response = await fetch(API_URL, {
+  method: "POST",
+  body: params,
+});
       const json = await response.json();
 
       if (json.status === "success") {
