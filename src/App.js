@@ -1,319 +1,230 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Plus,
-  Search,
-  Save,
-  ArrowLeft,
-  Activity,
-} from "lucide-react";
-
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import React from "react";
 
 /* =========================
-   CONFIG
+   ICONS
 ========================= */
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbydW5yLKFKGrKXO_Zl9WhYpJY2wAcCwRNX5oBZhuD756FObJ2-TCpXn0W1WCzKJwJ0Y/exec";
 
-const APP_TOKEN = "stroke2026secure";
-
+const ICONS = {
+  activity: "🫀",
+  analytics: "📊",
+  registry: "📋",
+  users: "👥",
+  report: "📄",
+};
 
 /* =========================
-   DEFAULT FORM
+   SIMPLE CARD
 ========================= */
 
-const createDefaultForm = () => ({
-  hn: "",
-  an: "",
-  fullName: "",
-  age: "",
-  gender: "ชาย",
-  diagnosis: "",
-  strokeType: "Ischemic",
-  onsetTime: "",
-  arrivalTime: "",
-  doorToNeedleTime: "",
-  nihss: "",
-  ctBrainResult: "",
-  thrombolysis: "ไม่ได้ให้",
-  thrombectomy: "ไม่ได้ทำ",
-  admitDate: new Date().toISOString().split("T")[0],
-  dischargeDate: "",
-  outcome: "กำลังรักษา",
-  complication: "",
-  riskFactors: "",
-  followUp: "",
-  doctor: "",
-  nurse: "",
-  remark: "",
-});
-
-/* =========================
-   CARD
-========================= */
-
-function Card({ title, value }) {
+function Card({ children, className = "" }) {
   return (
-    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-      <p className="text-[10px] uppercase font-black text-slate-400">
-        {title}
-      </p>
-
-      <h3 className="text-2xl font-black text-slate-800 mt-2">
-        {value}
-      </h3>
+    <div
+      className={`bg-white rounded-3xl shadow-sm border border-slate-100 ${className}`}
+    >
+      {children}
     </div>
   );
 }
 
+function CardContent({ children, className = "" }) {
+  return <div className={className}>{children}</div>;
+}
+
 /* =========================
-   INPUT
+   SIMPLE BUTTON
 ========================= */
 
-function Input({
-  label,
-  value,
-  onChange,
-  required = false,
-  type = "text",
+function Button({
+  children,
+  className = "",
+  variant = "default",
 }) {
-  return (
-    <div>
-      <label className="text-[10px] uppercase font-black text-slate-400">
-        {label}
-        {required && (
-          <span className="text-red-500 ml-1">*</span>
-        )}
-      </label>
+  const base =
+    "px-5 py-3 rounded-2xl font-semibold transition-all";
 
-      <input
-        type={type}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-2 border-2 border-slate-100 rounded-xl p-3 bg-slate-50 text-sm outline-none"
-      />
+  const styles =
+    variant === "outline"
+      ? "border border-slate-300 bg-white hover:bg-slate-50"
+      : "bg-slate-900 text-white hover:opacity-90";
+
+  return (
+    <button className={`${base} ${styles} ${className}`}>
+      {children}
+    </button>
+  );
+}
+
+/* =========================
+   FEATURE ITEM
+========================= */
+
+function FeatureItem({ icon, text }) {
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50">
+      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl">
+        {icon}
+      </div>
+
+      <p className="font-medium">{text}</p>
     </div>
   );
 }
 
 /* =========================
-   APP
+   MAIN APP
 ========================= */
 
-export default function App() {
-  const [view, setView] = useState("dashboard");
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState(
-    createDefaultForm()
-  );
+export default function StrokeRegistryProWebsite() {
+  const stats = [
+    {
+      title: "ผู้ป่วยทั้งหมด",
+      value: "1,248",
+      icon: ICONS.users,
+    },
+    {
+      title: "ASA Compliance",
+      value: "92.4%",
+      icon: ICONS.activity,
+    },
+    {
+      title: "ภาวะแทรกซ้อน",
+      value: "38",
+      icon: ICONS.analytics,
+    },
+    {
+      title: "รายงานวิจัย",
+      value: "12",
+      icon: ICONS.report,
+    },
+  ];
 
-  /* =========================
-     FETCH PATIENTS
-  ========================= */
-
- const fetchPatients = async () => {
-  setLoading(true);
-  setApiError(null);
-
-  try {
-    // GET ต้องมี token
-    const response = await fetch(
-      `${API_URL}?action=getPatients&token=${APP_TOKEN}`
-    );
-
-    const json = await response.json();
-
-    if (json.status === "success") {
-      setPatients(json.data || []);
-    } else {
-      setApiError(json.message || "API ERROR");
-    }
-  } catch (error) {
-    console.error("fetchPatients error:", error);
-    setApiError("Cannot connect API");
-  } finally {
-    setLoading(false);
-  }
-};
-
-  /* =========================
-     STATS
-  ========================= */
-
-  const stats = useMemo(() => {
-    const total = patients.length;
-
-    const fastTrackCount = patients.filter(
-      (p) =>
-        p["Thrombolysis"] === "ให้ rt-PA" ||
-        p.thrombolysis === "ให้ rt-PA"
-    ).length;
-
-    const typeMap = {};
-
-    patients.forEach((p) => {
-      const type =
-        p["Stroke Type"] ||
-        p.strokeType ||
-        "Unknown";
-
-      typeMap[type] = (typeMap[type] || 0) + 1;
-    });
-
-    const pieData = Object.keys(typeMap).map(
-      (key) => ({
-        name: key,
-        value: typeMap[key],
-      })
-    );
-
-    return {
-      total,
-      fastTrackCount,
-      pieData,
-    };
-  }, [patients]);
-
-  /* =========================
-     FILTER
-  ========================= */
-
-  const filteredPatients = useMemo(() => {
-    const keyword = searchTerm.toLowerCase();
-
-    return patients.filter((p) => {
-      const fullName =
-        p["Full Name"] || p.fullName || "";
-      const hn = p["HN"] || p.hn || "";
-      const an = p["AN"] || p.an || "";
-
-      return (
-        fullName.toLowerCase().includes(keyword) ||
-        hn.toLowerCase().includes(keyword) ||
-        an.toLowerCase().includes(keyword)
-      );
-    });
-  }, [patients, searchTerm]);
-
-  /* =========================
-     INPUT CHANGE
-  ========================= */
-
-  const handleInputChange = (key, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  /* =========================
-     SUBMIT
-  ========================= */
-
- const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (
-    !formData.hn ||
-    !formData.an ||
-    !formData.fullName
-  ) {
-    alert("กรุณากรอกข้อมูลให้ครบ");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    /*
-      POST ต้องมี token
-      ใช้ URLSearchParams
-      ห้ามใช้ JSON.stringify
-      เพื่อหลีกเลี่ยง CORS
-    */
-
-    const params = new URLSearchParams({
-      action: "addPatient",
-      token: APP_TOKEN,
-      ...formData,
-    });
-
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: params,
-    });
-
-    const json = await response.json();
-
-    if (json.status === "success") {
-      alert("บันทึกสำเร็จ");
-
-      setFormData(createDefaultForm());
-
-      await fetchPatients();
-
-      setView("registry");
-    } else {
-      alert(json.message || "Save failed");
-    }
-  } catch (error) {
-    console.error("handleSubmit error:", error);
-    alert("เชื่อม API ไม่ได้");
-  } finally {
-    setLoading(false);
-  }
-};
+  const features = [
+    {
+      icon: ICONS.registry,
+      text: "Stroke Registry ครบวงจร",
+    },
+    {
+      icon: ICONS.analytics,
+      text: "KPI Dashboard และ Analytics",
+    },
+    {
+      icon: ICONS.report,
+      text: "Annual Report และ Executive Summary",
+    },
+    {
+      icon: ICONS.users,
+      text: "Export ข้อมูลสำหรับงานวิจัย",
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* HEADER */}
 
-      <header className="bg-white p-4 md:p-6 flex justify-between items-center rounded-3xl shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-900 text-white p-3 rounded-xl">
-            <Activity size={20} />
+      <header className="bg-slate-900 text-white px-8 py-6 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-2xl">
+              {ICONS.activity}
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold">
+                Stroke Registry Pro
+              </h1>
+
+              <p className="text-sm text-slate-300">
+                ระบบดูแลผู้ป่วยโรคหลอดเลือดสมองระดับโรงพยาบาล
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="font-black text-sm text-slate-800">
-              Nopparat Rajathanee Hospital
-            </h1>
-
-            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-              Stroke Registry System
-            </p>
-          </div>
+          <Button>เข้าสู่ระบบ</Button>
         </div>
-
-        <button
-          onClick={() => setView("add")}
-          className="bg-blue-900 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-bold"
-        >
-          <Plus size={14} />
-          เพิ่มผู้ป่วย
-        </button>
       </header>
 
-      {/* API ERROR */}
+      {/* MAIN */}
 
-      {apiError && (
-        <div className="bg-red-50 border border-red-200 p-4 rounded-xl mt-4">
-          <p className="text-red-600 font-bold">
-            API ERROR : {apiError}
-          </p>
-        </div>
-      )}
+      <main className="max-w-7xl mx-auto px-8 py-10 space-y-10">
+        {/* HERO */}
+
+        <section className="grid md:grid-cols-2 gap-8 items-center">
+          <div>
+            <p className="text-indigo-600 font-semibold mb-2">
+              Professional Research Dashboard
+            </p>
+
+            <h2 className="text-4xl font-bold leading-tight mb-4">
+              ระบบ Stroke Registry พร้อม Analytics
+              และ Executive Summary
+            </h2>
+
+            <p className="text-slate-600 mb-6 leading-relaxed">
+              ใช้สำหรับติดตามผู้ป่วย วิเคราะห์ KPI
+              สรุปรายงานประจำปี
+              สนับสนุนงานวิจัยทางคลินิก
+              และการนำเสนอข้อมูลระดับผู้บริหาร
+            </p>
+
+            <div className="flex gap-4 flex-wrap">
+              <Button>เริ่มใช้งาน</Button>
+
+              <Button variant="outline">
+                ดูรายงาน
+              </Button>
+            </div>
+          </div>
+
+          {/* FEATURES */}
+
+          <Card className="shadow-lg border-0">
+            <CardContent className="p-8">
+              <h3 className="text-xl font-bold mb-6">
+                ฟีเจอร์หลัก
+              </h3>
+
+              <div className="space-y-4">
+                {features.map((feature) => (
+                  <FeatureItem
+                    key={feature.text}
+                    icon={feature.icon}
+                    text={feature.text}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* STATS */}
+
+        <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((item) => (
+            <Card
+              key={item.title}
+              className="hover:shadow-md transition-all"
+            >
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm text-slate-500">
+                      {item.title}
+                    </p>
+
+                    <h3 className="text-3xl font-bold mt-2">
+                      {item.value}
+                    </h3>
+                  </div>
+
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl">
+                    {item.icon}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      </main>
     </div>
   );
 }
