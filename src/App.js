@@ -3,9 +3,12 @@ import React, { useState, useEffect } from "react";
 const API_URL =
   "https://script.google.com/macros/s/AKfycbwlDLKbLNRZ0dLKp5Qh9ira4yfhrVQ9DGAQGP2zMdEo18AkEvYJu9Ahc5gTcvPNgYU8EQ/exec";
 
-function App() {
+export default function App() {
   const [patients, setPatients] = useState([]);
-  const [form, setForm] = useState({
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [formData, setFormData] = useState({
     hn: "",
     an: "",
     fullName: "",
@@ -20,7 +23,7 @@ function App() {
     ctBrainResult: "",
     thrombolysis: "ไม่ได้ให้",
     thrombectomy: "ไม่ได้ทำ",
-    admitDate: "",
+    admitDate: new Date().toISOString().split("T")[0],
     dischargeDate: "",
     outcome: "กำลังรักษา",
     complication: "",
@@ -28,19 +31,34 @@ function App() {
     followUp: "",
     doctor: "",
     nurse: "",
-    remark: ""
+    remark: "",
   });
 
+  /* =========================
+     FETCH PATIENTS
+  ========================= */
+
   const fetchPatients = async () => {
+    setLoading(true);
+    setError("");
+
     try {
-      const res = await fetch(`${API_URL}?action=getPatients`);
-      const json = await res.json();
+      const response = await fetch(
+        `${API_URL}?action=getPatients`
+      );
+
+      const json = await response.json();
 
       if (json.status === "success") {
         setPatients(json.data || []);
+      } else {
+        setError(json.message || "API Error");
       }
     } catch (err) {
       console.error(err);
+      setError("Failed to fetch API");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,33 +66,52 @@ function App() {
     fetchPatients();
   }, []);
 
-  const handleChange = (key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value
-    }));
-  };
+  /* =========================
+     SAVE PATIENT
+  ========================= */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const params = new URLSearchParams({
-      action: "addPatient",
-      ...form
-    });
+    if (!formData.hn || !formData.an || !formData.fullName) {
+      alert("กรุณากรอก HN / AN / Full Name");
+      return;
+    }
 
-    const res = await fetch(API_URL, {
-      method: "POST",
-      body: params
-    });
+    setLoading(true);
 
-    const json = await res.json();
+    try {
+      const params = new URLSearchParams({
+        action: "addPatient",
+        ...formData,
+      });
 
-    if (json.status === "success") {
-      alert("บันทึกสำเร็จ");
-      fetchPatients();
-    } else {
-      alert(json.message);
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: params,
+      });
+
+      const json = await response.json();
+
+      if (json.status === "success") {
+        alert("บันทึกสำเร็จ");
+
+        setFormData({
+          ...formData,
+          hn: "",
+          an: "",
+          fullName: "",
+        });
+
+        fetchPatients();
+      } else {
+        alert(json.message || "Save failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to connect API");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,78 +119,61 @@ function App() {
     <div style={{ padding: 30 }}>
       <h1>Stroke Registry System</h1>
 
+      {error && (
+        <div style={{ color: "red", marginBottom: 20 }}>
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <input
           placeholder="HN"
-          value={form.hn}
+          value={formData.hn}
           onChange={(e) =>
-            handleChange("hn", e.target.value)
+            setFormData({
+              ...formData,
+              hn: e.target.value,
+            })
           }
         />
 
         <input
           placeholder="AN"
-          value={form.an}
+          value={formData.an}
           onChange={(e) =>
-            handleChange("an", e.target.value)
+            setFormData({
+              ...formData,
+              an: e.target.value,
+            })
           }
         />
 
         <input
           placeholder="Full Name"
-          value={form.fullName}
+          value={formData.fullName}
           onChange={(e) =>
-            handleChange("fullName", e.target.value)
+            setFormData({
+              ...formData,
+              fullName: e.target.value,
+            })
           }
         />
 
-        <select
-          value={form.gender}
-          onChange={(e) =>
-            handleChange("gender", e.target.value)
-          }
-        >
-          <option>ชาย</option>
-          <option>หญิง</option>
-        </select>
-
-        <select
-          value={form.strokeType}
-          onChange={(e) =>
-            handleChange("strokeType", e.target.value)
-          }
-        >
-          <option>Ischemic</option>
-          <option>Hemorrhagic</option>
-          <option>TIA</option>
-        </select>
-
-        <select
-          value={form.thrombolysis}
-          onChange={(e) =>
-            handleChange("thrombolysis", e.target.value)
-          }
-        >
-          <option>ไม่ได้ให้</option>
-          <option>ให้ rt-PA</option>
-        </select>
-
         <button type="submit">
-          Save Patient
+          {loading ? "Saving..." : "Save"}
         </button>
       </form>
 
       <hr />
 
-      <h2>Patient List</h2>
+      <h2>Patient List ({patients.length})</h2>
 
       {patients.map((p, i) => (
         <div key={i}>
-          {p["Full Name"]} | HN: {p["HN"]} | Stroke: {p["Stroke Type"]}
+          {p["Full Name"] || p.fullName} — HN:
+          {p["HN"] || p.hn}
         </div>
       ))}
     </div>
   );
 }
-
-export default App;
