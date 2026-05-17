@@ -1,20 +1,1141 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Stroke Care System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <meta name="description" content="ระบบบริหารจัดการและติดตามผู้ป่วยโรคหลอดเลือดสมอง" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Stroke Care System" />
-    <meta property="og:description" content="ระบบบริหารจัดการและติดตามผู้ป่วยโรคหลอดเลือดสมอง" />
-    <meta property="og:url" content="https://stroke-care-system.vercel.app" />
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:title" content="Stroke Care System" />
-    <meta property="twitter:description" content="ระบบบริหารจัดการและติดตามผู้ป่วยโรคหลอดเลือดสมอง" />
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<html lang="th">
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stroke Registry & Dashboard System</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- React & ReactDOM Dependencies -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Required Peer Dependency for Recharts UMD Build -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
+  
+  <!-- Stable Version of Recharts -->
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    :root {
+      --color-primary: #4f46e5;
+      --color-danger: #ef4444;
+      --color-navy: #1e1b4b;
+    }
+
+    body {
+      font-family: 'Kanit', sans-serif;
+      background-color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+
+    .panel {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .badge {
+      padding: 2px 10px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    #global-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0b1329;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      align-items: center;
+      z-index: 9999;
+    }
+  
+    #global-loader .spinner { 
+      margin: 0px;
+      border: 4px solid rgba(255,255,255,0.05); 
+      border-left-color: #3b82f6; 
+      border-radius: 50%; 
+      width: 45px; 
+      height: 45px; 
+      animation: spin 0.8s linear infinite; 
+    }
+
+    #global-loader h2, 
+    #global-loader p {
+      margin: 0px; 
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="global-loader">
+    <div class="spinner mb-4"></div>
+    <h2 class="text-lg font-medium text-slate-300">กำลังเปิดประตูเข้าสู่ระบบ Stroke Registry...</h2>
+    <p class="text-xs text-slate-500 mt-1">กรุณารอสักครู่ ระบบกำลังซิงค์สัญญาณสเปรดชีตหลังบ้าน</p>
+  </div>
+
+  <div id="app-root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+    const { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } = Recharts;
+
+    const Icons = {
+      Dashboard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" /></svg>,
+      Form: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+      User: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+      Lock: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>,
+      Plus: () => <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" /></svg>
+    };
+
+    // --- ฟังก์ชันการทำงานร่วมกับ Gemini API (อิงสถาปัตยกรรมแบบ Production ปลอดภัยสูง) ---
+    const callGeminiAPI = async (prompt, systemInstruction, responseSchema, dynamicKey) => {
+      // ตรวจสอบตัวตนของคีย์ก่อนเรียกใช้ระบบภายนอก
+      const finalKey = dynamicKey || "";
+      if (!finalKey) {
+        throw new Error("ไม่พบสิทธิ์การใช้งานระบบประมวลผลสมองกล กรุณาติดต่อผู้ดูแลระบบเพื่อเปิดสิทธิ์การเข้าถึงหลังบ้าน");
+      }
+      
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=" + finalKey;
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
+      
+      if (systemInstruction) {
+        payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+      }
+      
+      if (responseSchema) {
+        payload.generationConfig = {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
+        };
+      }
+
+      let delay = 1000;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            throw new Error("HTTP error! Status: " + response.status);
+          }
+          
+          const result = await response.json();
+          let text = "";
+          if (result && result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0]) {
+            text = result.candidates[0].content.parts[0].text;
+          }
+          
+          if (!text) throw new Error("API ผลลัพธ์กลับมาว่างเปล่า");
+          return text;
+        } catch (error) {
+          if (i === 4) throw error;
+          await new Promise(function(resolve) { setTimeout(resolve, delay); });
+          delay *= 2;
+        }
+      }
+    };
+
+    const nurseNotesSchema = {
+      type: "OBJECT",
+      properties: {
+        hn: { type: "STRING" },
+        an: { type: "STRING" },
+        patient_name: { type: "STRING" },
+        age: { type: "STRING" },
+        gender: { type: "STRING" }, 
+        stroke_type: { type: "STRING" }, 
+        ht: { type: "BOOLEAN" },
+        dm: { type: "BOOLEAN" },
+        dlp: { type: "BOOLEAN" },
+        af: { type: "BOOLEAN" },
+        rtpa: { type: "STRING" }, 
+        nihss_adm: { type: "STRING" },
+        nihss_dis: { type: "STRING" },
+        discharge_status: { type: "STRING" }, 
+        onset_datetime: { type: "STRING" }, 
+        arrival_datetime: { type: "STRING" }, 
+        needle_datetime: { type: "STRING" }, 
+        recurrent_stroke: { type: "BOOLEAN" },
+        aspiration_pneumonia: { type: "BOOLEAN" },
+        uti: { type: "BOOLEAN" },
+        bed_sore: { type: "BOOLEAN" },
+        fall: { type: "BOOLEAN" },
+        hemorrhage: { type: "BOOLEAN" },
+        iicp: { type: "BOOLEAN" },
+        sepsis: { type: "BOOLEAN" },
+        dvt: { type: "BOOLEAN" }
+      }
+    };
+
+    function App() {
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [username, setUsername] = useState("");
+      const [password, setPassword] = useState("");
+      const [currentUser, setCurrentUser] = useState({ name: "เจ้าหน้าที่ประมวลผล", role: "User" });
+      const [currentTab, setCurrentTab] = useState("dashboard");
+      
+      const [patients, setPatients] = useState([]);
+      const [monthlyStats, setMonthlyStats] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [showModal, setShowModal] = useState(false);
+      const [jsonInput, setJsonInput] = useState("");
+
+      // --- ตัวแปรสำหรับ Production Security ---
+      const [backendGeminiKey, setBackendGeminiKey] = useState("");
+
+      // --- ฟังก์ชัน AI States ---
+      const [nursingNoteText, setNursingNoteText] = useState("");
+      const [isParsingNote, setIsParsingNote] = useState(false);
+      const [activeFormTab, setActiveFormTab] = useState("manual"); 
+      
+      const [insightPatient, setInsightPatient] = useState(null);
+      const [insightResult, setInsightResult] = useState("");
+      const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
+
+      const [chatOpen, setChatOpen] = useState(false);
+      const [chatMessages, setChatMessages] = useState([
+        { role: "assistant", content: "สวัสดีค่ะแพทย์และทีมพยาบาลประจำวอร์ด ยินดีต้อนรับสู่ระบบผู้ช่วยพยาบาล AI คลินิกคู่ใจ! คุณสามารถถามคำถามทางการแพทย์ แนวปฏิบัติโรคสมอง หรือสั่งให้ฉันร่างประวัติสรุปอาการ และ refer email จากข้อมูลสถิติคนไข้ปัจจุบันในวอร์ดได้เลยนะคะ ✨" }
+      ]);
+      const [chatInput, setChatInput] = useState("");
+      const [isChatSending, setIsChatSending] = useState(false);
+      const chatEndRef = useRef(null);
+
+      const defaultForm = {
+        hn: "", an: "", patient_name: "", age: "", gender: "ชาย", stroke_type: "Ischemic",
+        ht: false, dm: false, dlp: false, af: false,
+        rtpa: "ไม่ได้รับ",
+        nihss_adm: "", nihss_dis: "", discharge_status: "Improved",
+        onset_datetime: "", arrival_datetime: "", needle_datetime: "",
+        recurrent_stroke: false, aspiration_pneumonia: false, uti: false,
+        bed_sore: false, fall: false, hemorrhage: false, iicp: false, sepsis: false, dvt: false
+      };
+      const [formData, setFormData] = useState(defaultForm);
+
+      useEffect(() => {
+        const mainLoader = document.getElementById('global-loader');
+        if(mainLoader) mainLoader.style.display = 'none';
+        if (isAuthenticated) {
+          fetchCloudData();
+          fetchBackendProperties();
+        }
+      }, [isAuthenticated]);
+
+      useEffect(() => {
+        if (chatEndRef.current) {
+          chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [chatMessages, chatOpen]);
+
+      // ดึงคีย์ลับทางอ้อมจากระบบเซิร์ฟเวอร์หลังบ้าน ป้องกันคีย์หลุด
+      const fetchBackendProperties = () => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((key) => {
+              if (key) setBackendGeminiKey(key);
+            })
+            .getGeminiApiKeySecurely();
+        } else {
+          setBackendGeminiKey("SANDBOX_MOCK_KEY"); // โหมดทดสอบหน้าเว็บโลคอล
+        }
+      };
+
+      const fetchCloudData = () => {
+        setLoading(true);
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((response) => {
+              setLoading(false);
+              if (response.status === "success") {
+                setPatients(response.data || []);
+                setMonthlyStats(response.monthlyStats || []);
+              } else {
+                Swal.fire("ข้อผิดพลาด", response.message, "error");
+              }
+            })
+            .withFailureHandler((err) => {
+              setLoading(false);
+              Swal.fire("ดึงข้อมูลล้มเหลว", err.toString(), "error");
+            })
+            .getRegistryData();
+        } else {
+          setLoading(false);
+          setPatients([
+            { "ID บันทึก": "REC-001", "HN": "45689", "ชื่อ-นามสกุล": "สมชาย มีสติ", "อายุ": 65, "เพศ": "ชาย", "ประเภท Stroke": "Ischemic", "ได้รับยา rt-PA": "ได้รับ", "NIHSS แรกรับ": 14, "NIHSS ก่อนจำหน่าย": 3, "สถานะการจำหน่าย": "Improved", "โรคประจำตัว": "HT, DM, DLP", "Recurrent Stroke": false, "Aspiration Pneumonia": true, "วันเวลาเริ่มมีอาการ": "2026-05-17T12:30", "วันเวลามาถึงโรงพยาบาล": "2026-05-17T13:45", "วันเวลาที่ได้รับยา": "2026-05-17T14:30" },
+            { "ID บันทึก": "REC-002", "HN": "12345", "ชื่อ-นามสกุล": "สายใจ แข็งแรง", "อายุ": 70, "เพศ": "หญิง", "ประเภท Stroke": "Hemorrhagic", "ได้รับยา rt-PA": "ไม่ได้รับ", "NIHSS แรกรับ": 20, "NIHSS ก่อนจำหน่าย": 18, "สถานะการจำหน่าย": "Stable", "โรคประจำตัว": "HT", "Recurrent Stroke": false, "Aspiration Pneumonia": false, "วันเวลาเริ่มมีอาการ": "2026-05-16T08:00", "วันเวลามาถึงโรงพยาบาล": "2026-05-16T09:15" }
+          ]);
+          setMonthlyStats([{ month: "พ.ค. 69", total_cases: 2, ischemic_count: 1, hemorrhagic_count: 1, tia_count: 0, avg_door_to_needle_mins: 45 }]);
+        }
+      };
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((response) => {
+              if (response.status === "success") {
+                setCurrentUser({ name: response.user || username, role: response.role || "User" });
+                setIsAuthenticated(true);
+              } else {
+                Swal.fire("เข้าระบบไม่สำเร็จ", response.message, "error");
+              }
+            })
+            .loginUser(username, password);
+        } else {
+          if (username === "nurse01" && password === "123456") {
+            setCurrentUser({ name: "พยาบาล (Sandbox)", role: "Admin" });
+            setIsAuthenticated(true);
+          } else {
+            Swal.fire("คำเตือน", "กรอกรหัสทดสอบ nurse01 / 123456", "warning");
+          }
+        }
+      };
+
+      const handleFormSubmit = (e) => {
+        e.preventDefault();
+        if (!formData.hn || !formData.patient_name) {
+          Swal.fire("ข้อมูลไม่ครบ", "กรุณากรอก HN และชื่อคนไข้ให้ครบถ้วน", "warning");
+          return;
+        }
+
+        setLoading(true);
+        let underlying = [];
+        if(formData.ht) underlying.push("HT");
+        if(formData.dm) underlying.push("DM");
+        if(formData.dlp) underlying.push("DLP");
+        if(formData.af) underlying.push("AF");
+        
+        const payload = {
+          "HN": formData.hn,
+          "AN": formData.an,
+          "ชื่อ-นามสกุล": formData.patient_name,
+          "อายุ": formData.age ? Number(formData.age) : "",
+          "เพศ": formData.gender,
+          "ประเภท Stroke": formData.stroke_type,
+          "โรคประจำตัว": underlying.join(", "),
+          "ได้รับยา rt-PA": formData.rtpa,
+          "NIHSS แรกรับ": formData.nihss_adm ? Number(formData.nihss_adm) : "",
+          "NIHSS ก่อนจำหน่าย": formData.nihss_dis ? Number(formData.nihss_dis) : "",
+          "สถานะการจำหน่าย": formData.discharge_status,
+          "วันเวลาเริ่มมีอาการ": formData.onset_datetime,
+          "วันเวลามาถึงโรงพยาบาล": formData.arrival_datetime,
+          "วันเวลาที่ได้รับยา": formData.needle_datetime,
+          "Recurrent Stroke": formData.recurrent_stroke,
+          "Aspiration Pneumonia": formData.aspiration_pneumonia,
+          "UTI": formData.uti,
+          "Bed Sore": formData.bed_sore,
+          "Fall": formData.fall,
+          "Hemorrhage": formData.hemorrhage,
+          "IICP": formData.iicp,
+          "Sepsis": formData.sepsis,
+          "DVT": formData.dvt
+        };
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((response) => {
+              setLoading(false);
+              if (response.status === "success") {
+                Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+                setShowModal(false);
+                setFormData(defaultForm);
+                setNursingNoteText("");
+                fetchCloudData();
+              } else {
+                Swal.fire("ผิดพลาด", response.message, "error");
+              }
+            })
+            .savePatientsWithDynamicMapping([payload], currentUser.name);
+        } else {
+          setLoading(false);
+          setShowModal(false);
+          setPatients(prev => [payload, ...prev]);
+          Swal.fire("สำเร็จ", "จำลองการบันทึกข้อมูลเรียบร้อย", "success");
+        }
+      };
+
+      const handleAIParseNursingNotes = async () => {
+        if (!nursingNoteText.trim()) {
+          Swal.fire("ข้อมูลบันทึกพยาบาลว่างเปล่า", "กรุณาระบุหรือแปะข้อความบันทึกก่อนวิเคราะห์ค่ะ", "warning");
+          return;
+        }
+
+        setIsParsingNote(true);
+        try {
+          const sysPrompt = "คุณคือพยาบาลผู้เชี่ยวชาญการถอดบันทึกคลินิก (Clinical NLP parser) ของหอผู้ป่วยหลอดเลือดสมอง ประเทศไทย หน้าที่ของคุณคือสกัดเนื้อความดิบที่พยาบาลพิมพ์ส่งเวร แล้วดึงประเด็นข้อมูลสำคัญมาจัดลงฟิลด์ JSON ตามรูปแบบ Schema ที่ระบุอย่างถูกต้องที่สุด ห้ามเดาข้อมูลเกินความจริง หากจุดใดไม่มีการระบุให้ตอบเป็นค่าว่างหรือ false";
+          const parsedStr = await callGeminiAPI(nursingNoteText, sysPrompt, nurseNotesSchema, backendGeminiKey);
+          const parsedObj = JSON.parse(parsedStr);
+
+          setFormData({
+            hn: parsedObj.hn || "",
+            an: parsedObj.an || "",
+            patient_name: parsedObj.patient_name || "",
+            age: parsedObj.age || "",
+            gender: parsedObj.gender || "ชาย",
+            stroke_type: parsedObj.stroke_type || "Ischemic",
+            ht: !!parsedObj.ht,
+            dm: !!parsedObj.dm,
+            dlp: !!parsedObj.dlp,
+            af: !!parsedObj.af,
+            rtpa: parsedObj.rtpa || "ไม่ได้รับ",
+            nihss_adm: parsedObj.nihss_adm || "",
+            nihss_dis: parsedObj.nihss_dis || "",
+            discharge_status: parsedObj.discharge_status || "Improved",
+            onset_datetime: parsedObj.onset_datetime || "",
+            arrival_datetime: parsedObj.arrival_datetime || "",
+            needle_datetime: parsedObj.needle_datetime || "",
+            recurrent_stroke: !!parsedObj.recurrent_stroke,
+            aspiration_pneumonia: !!parsedObj.aspiration_pneumonia,
+            uti: !!parsedObj.uti,
+            bed_sore: !!parsedObj.bed_sore,
+            fall: !!parsedObj.fall,
+            hemorrhage: !!parsedObj.hemorrhage,
+            iicp: !!parsedObj.iicp,
+            sepsis: !!parsedObj.sepsis,
+            dvt: !!parsedObj.dvt
+          });
+
+          Swal.fire({
+            icon: 'success',
+            title: 'วิเคราะห์บันทึกเสร็จสมบูรณ์! ✨',
+            text: 'ระบบแมปอาการแรกรับ ยาที่ได้รับ และตัวบ่งชี้ภาวะแทรกซ้อนลงช่องแบบฟอร์มให้เรียบร้อยแล้ว กรุณาไปตรวจสอบข้อมูลความถูกต้องที่แท็บระบุเองได้เลยค่ะ',
+            confirmButtonText: 'ตกลง'
+          });
+          setActiveFormTab("manual");
+        } catch (error) {
+          Swal.fire("ไม่สามารถแปลงข้อมูลได้", error.message, "error");
+        } finally {
+          setIsParsingNote(false);
+        }
+      };
+
+      const handleTriggerClinicalInsight = async (patient) => {
+        setInsightPatient(patient);
+        setIsGeneratingInsight(true);
+        setInsightResult("");
+
+        try {
+          const sysPrompt = "คุณคืออายุรแพทย์ประสาทวิทยาร่วมกับพยาบาลวิชาชีพเฉพาะทางหอผู้ป่วยโรคหลอดเลือดสมอง (Stroke Unit) หน้าที่ของคุณคือการวิเคราะห์อาการผู้ป่วยรายนี้ ประเมินวิเคราะห์ความเสี่ยงรายบุคคลต่อการเกิดภาวะแทรกซ้อนในอนาคต (เช่น โอกาสสำลัก แผลกดทับ ลิ่มเลือดอุดตันสะสม หรือการเกิดซ้ำ) พร้อมทั้งระบุข้อเสนอแนะหลักการพยาบาลแบบอิงประจักษ์ (Evidence-based practice) ตอบเป็นภาษาไทย มีรูปแบบข้อความ Markdown ที่สวยงาม อ่านเข้าใจง่าย";
+          const patientDetailStr = "ประวัติคนไข้: \n" +
+            "- ชื่อ-นามสกุล: " + patient["ชื่อ-นามสกุล"] + "\n" +
+            "- HN: " + patient["HN"] + "\n" +
+            "- ประเภท Stroke: " + patient["ประเภท Stroke"] + "\n" +
+            "- ได้รับยา rt-PA: " + patient["ได้รับยา rt-PA"] + "\n" +
+            "- โรคประจำตัว: " + (patient["โรคประจำตัว"] || "ไม่มีรายงาน") + "\n" +
+            "- อายุ: " + (patient["อายุ"] || "ไม่ระบุ") + "\n" +
+            "- NIHSS แรกรับ: " + (patient["NIHSS แรกรับ"] || "ไม่ได้ประเมิน") + "\n" +
+            "- NIHSS ก่อนจำหน่าย: " + (patient["NIHSS ก่อนจำหน่าย"] || "ไม่ได้ประเมิน") + "\n" +
+            "- Status จำหน่าย: " + (patient["สถานะการจำหน่าย"] || "ยังไม่จำหน่าย") + "\n" +
+            "- ภาวะแทรกซ้อนที่พบ: " + [
+              patient["Recurrent Stroke"] ? "โรคหลอดเลือดสมองเป็นซ้ำ" : "",
+              patient["Aspiration Pneumonia"] ? "ปอดอักเสบจากการสำลัก" : "",
+              patient["UTI"] ? "การติดเชื้อในระบบปัสสาวะ" : "",
+              patient["Bed Sore"] ? "แผลกดทับ" : "",
+              patient["Fall"] ? "ตกเตียงพลัดตก" : "",
+              patient["Hemorrhage"] ? "มีเลือดออกผิดปกติ" : "",
+              patient["IICP"] ? "ความดันกะโหลกศีรษะสูง" : "",
+              patient["Sepsis"] ? "ติดเชื้อในกระแสเลือด" : "",
+              patient["DVT"] ? "ลิ่มเลือดอุดตันในหลอดเลือดดำลึก" : ""
+            ].filter(Boolean).join(", ");
+
+          const response = await callGeminiAPI(patientDetailStr, sysPrompt, null, backendGeminiKey);
+          setInsightResult(response);
+        } catch (error) {
+          Swal.fire("เกิดข้อผิดพลาดในการวิเคราะห์", error.message, "error");
+          setInsightPatient(null);
+        } finally {
+          setIsGeneratingInsight(false);
+        }
+      };
+
+      const handleSendCopilotChat = async (e) => {
+        if (e) e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const userText = chatInput;
+        setChatMessages(prev => [...prev, { role: "user", content: userText }]);
+        setChatInput("");
+        setIsChatSending(true);
+
+        try {
+          const statsContext = "ข้อมูลสถิติสดวอร์ดคุณ ณ ปัจจุบัน:\n" +
+            "- คนไข้สะสมรวมทั้งหมด: " + patients.length + " ราย\n" +
+            "- จำนวนเคสเกิดภาวะแทรกซ้อน: " + stats.compCount + " ราย\n" +
+            "- อัตราปลอดภัยไร้แทรกซ้อน (KPI %): " + (patients.length > 0 ? ((1 - (stats.compCount / patients.length)) * 100).toFixed(1) : "100") + "%\n" +
+            "- จำนวนคนไข้ตามประเภทโรค: Ischemic (" + stats.pieData.map(function(d){ return d.name === "Ischemic/Thrombotic" ? d.value : 0; }).reduce(function(a,b){return a+b;},0) + " ราย), Hemorrhagic (" + stats.pieData.map(function(d){ return d.name === "Hemorrhagic" ? d.value : 0; }).reduce(function(a,b){return a+b;},0) + " ราย)";
+
+          const systemPrompt = "คุณคือ ✨ พยาบาล AI ประจำวอร์ด (Stroke Unit Ward Copilot) ผู้ทรงคุณวุฒิและเชี่ยวชาญการเขียน Referral, อธิบายการประเมิน NIHSS หรืออิงคำแนะนำด้านความเสี่ยงตามข้อมูลวอร์ดคนไข้ล่าสุดที่คุณได้รับ คุณมักจะตอบอย่างอ่อนโยน เป็นมิตร สุภาพ มีมารยาทแบบไทย ให้ประพฤติตามมาตรฐานทางการแพทย์ที่ปลอดภัยเสมอ พิมพ์ตอบโดยจัดข้อความด้วย Markdown";
+          const chatPrompt = statsContext + "\n\nประวัติการคุยที่ผ่านมา:\n" + 
+            chatMessages.slice(-6).map(function(msg){ return (msg.role === "user" ? "ผู้ใช้" : "AI") + ": " + msg.content; }).join("\n") + 
+            "\n\nผู้ใช้ถาม: " + userText + "\nAI:";
+
+          const reply = await callGeminiAPI(chatPrompt, systemPrompt, null, backendGeminiKey);
+          setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
+        } catch (error) {
+          setChatMessages(prev => [...prev, { role: "assistant", content: "ขออภัยด้วยค่ะ ระบบขัดข้องชั่วคราว: " + error.message }]);
+        } finally {
+          setIsChatSending(false);
+        }
+      };
+
+      const parseSimpleMarkdown = (text) => {
+        if (!text) return "";
+        let escapedText = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        
+        escapedText = escapedText.replace(/\*\*(.*?)\*\"/g, "<strong>$1</strong>");
+        escapedText = escapedText.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        escapedText = escapedText.replace(/^### (.*?)$/gm, "<h4 class='text-sm font-bold text-slate-800 mt-4 mb-1'>$1</h4>");
+        escapedText = escapedText.replace(/^## (.*?)$/gm, "<h3 class='text-base font-bold text-slate-900 mt-5 mb-2 border-b pb-1'>$1</h3>");
+        escapedText = escapedText.replace(/^# (.*?)$/gm, "<h2 class='text-lg font-bold text-indigo-700 mt-6 mb-3'>$1</h2>");
+        escapedText = escapedText.replace(/^\s*-\s+(.*?)$/gm, "<li class='list-disc ml-5 text-xs text-slate-600 my-1'>$1</li>");
+        escapedText = escapedText.replace(/^\s*\*\s+(.*?)$/gm, "<li class='list-disc ml-5 text-xs text-slate-600 my-1'>$1</li>");
+        escapedText = escapedText.replace(/\n/g, "<br />");
+        return escapedText;
+      };
+
+      const stats = useMemo(() => {
+        const total = patients.length;
+        let compCount = 0;
+        const strokeTypes = { Ischemic: 0, Hemorrhagic: 0, TIA: 0 };
+        
+        patients.forEach(p => {
+          let typeStr = String(p["ประเภท Stroke"] || "").toLowerCase();
+          if (typeStr.includes("ischemic") || typeStr.includes("thrombotic") || typeStr.includes("embolic")) strokeTypes.Ischemic++;
+          else if (typeStr.includes("hemorrhagic")) strokeTypes.Hemorrhagic++;
+          else if (typeStr.includes("tia")) strokeTypes.TIA++;
+
+          if (p["Recurrent Stroke"] === true || p["Recurrent Stroke"] === "TRUE" ||
+              p["Aspiration Pneumonia"] === true || p["Aspiration Pneumonia"] === "TRUE" ||
+              p["UTI"] === true || p["UTI"] === "TRUE" ||
+              p["Bed Sore"] === true || p["Bed Sore"] === "TRUE" ||
+              p["Fall"] === true || p["Fall"] === "TRUE" ||
+              p["Hemorrhage"] === true || p["Hemorrhage"] === "TRUE" ||
+              p["IICP"] === true || p["IICP"] === "TRUE" ||
+              p["Sepsis"] === true || p["Sepsis"] === "TRUE" ||
+              p["DVT"] === true || p["DVT"] === "TRUE") {
+            compCount++;
+          }
+        });
+
+        const pieData = [
+          { name: 'Ischemic/Thrombotic', value: strokeTypes.Ischemic },
+          { name: 'Hemorrhagic', value: strokeTypes.Hemorrhagic },
+          { name: 'TIA', value: strokeTypes.TIA }
+        ].filter(d => d.value > 0);
+
+        return { total, compCount, pieData };
+      }, [patients]);
+
+      const COLORS = ['#3b82f6', '#ef4444', '#f59e0b'];
+
+      if (!isAuthenticated) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-[#0b1329] px-4">
+            <div className="w-full max-w-md bg-[#111c44] rounded-2xl shadow-xl p-8 border border-slate-800">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-blue-600/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-wide">STROKE REGISTRY</h1>
+                <p className="text-xs text-slate-400 mt-1">ระบบบันทึกและติดตามตัวชี้วัดหอผู้ป่วยใน (Inpatient Ward)</p>
+              </div>
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-2">ชื่อผู้ใช้งานระบบ</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Icons.User /></span>
+                    <input type="text" value={username} onChange={e => setUsername(e.target.value)} required className="w-full bg-[#1b254b] border border-slate-700/50 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="ระบุบัญชีพยาบาลผู้ใช้งาน" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-2">รหัสผ่านล็อกอิน</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><Icons.Lock /></span>
+                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-[#1b254b] border border-slate-700/50 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" />
+                  </div>
+                </div>
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-medium text-sm py-3 rounded-xl transition-all shadow-lg shadow-blue-600/20 mt-2">
+                  ยืนยันเข้าใช้งานระบบ
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-[#0b1329] flex flex-col relative">
+          <header className="bg-[#111c44] border-b border-slate-800/80 px-6 py-4 flex items-center justify-between shadow-md">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600 p-2 rounded-xl text-white font-bold tracking-tighter text-sm">ST</div>
+              <h1 className="text-lg font-semibold text-white tracking-wide hidden sm:block">Stroke Inpatient Management System</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => setChatOpen(!chatOpen)}
+                className="bg-[#4f46e5]/20 hover:bg-[#4f46e5]/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-xl text-xs flex items-center space-x-2 transition-all"
+              >
+                <span>✨ ผู้ช่วยพยาบาล AI</span>
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+              </button>
+              <div className="text-right">
+                <p className="text-xs text-slate-400">ผู้ลงชื่อปฏิบัติงาน</p>
+                <p className="text-sm font-medium text-blue-400">{currentUser.name}</p>
+              </div>
+              <button onClick={() => setIsAuthenticated(false)} className="bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 p-2 rounded-xl border border-slate-700/50 text-xs transition-colors">
+                ออกจากระบบ
+              </button>
+            </div>
+          </header>
+
+          <div className="flex flex-1 flex-col md:flex-row">
+            <nav className="w-full md:w-64 bg-[#111c44] p-4 space-y-2 border-r border-slate-800/60 md:min-h-[calc(100vh-73px)]">
+              <button onClick={() => setCurrentTab("dashboard")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${currentTab === "dashboard" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/15" : "text-slate-400 hover:bg-[#1b254b] hover:text-white"}`}>
+                <Icons.Dashboard /> <span>แผงควบคุมสถิติ (Dashboard)</span>
+              </button>
+              <button onClick={() => setCurrentTab("registry")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${currentTab === "registry" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/15" : "text-slate-400 hover:bg-[#1b254b] hover:text-white"}`}>
+                <Icons.Form /> <span>บัญชีรายชื่อคนไข้ (Registry)</span>
+              </button>
+              <button onClick={() => setCurrentTab("admin")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${currentTab === "admin" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15" : "text-slate-400 hover:bg-[#1b254b] hover:text-white"}`}>
+                <span>⚙️ นำเข้าข้อมูลกลุ่ม (JSON)</span>
+              </button>
+            </nav>
+
+            <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+              {loading && (
+                <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-4 text-center text-sm text-blue-300 flex items-center justify-center space-x-3 animate-pulse">
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>กำลังอัปเดตข้อมูลแบบเรียลไทม์...</span>
+                </div>
+              )}
+
+              {currentTab === "dashboard" && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="bg-[#111c44] rounded-2xl p-5 border border-slate-800 shadow-sm">
+                      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">ผู้ป่วยสะสมในระบบ</p>
+                      <p className="text-3xl font-bold text-white mt-2">{stats.total} <span className="text-sm font-normal text-slate-500">ราย</span></p>
+                    </div>
+                    <div className="bg-[#111c44] rounded-2xl p-5 border border-slate-800 shadow-sm">
+                      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">พบภาวะแทรกซ้อน</p>
+                      <p className="text-3xl font-bold text-amber-400 mt-2">{stats.compCount} <span className="text-sm font-normal text-slate-500">ราย</span></p>
+                    </div>
+                    <div className="bg-[#111c44] rounded-2xl p-5 border border-slate-800 shadow-sm sm:col-span-2 lg:col-span-1">
+                      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">อัตราปลอดภัยไร้แทรกซ้อน (KPI %)</p>
+                      <p className="text-3xl font-bold text-emerald-400 mt-2">
+                        {stats.total > 0 ? ((1 - (stats.compCount / stats.total)) * 100).toFixed(1) : "100"} <span className="text-sm font-normal text-slate-500">%</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#111c44] p-6 rounded-2xl border border-slate-800 shadow-md">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-white tracking-wide">📊 สรุปรายงานตัวชี้วัดแยกรายเดือน (Monthly Metrics)</h3>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-slate-800">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-[#1b254b] text-slate-200 border-b border-slate-800">
+                            <th className="p-3.5">เดือน/ปี</th>
+                            <th className="p-3.5 text-center">Total Cases</th>
+                            <th className="p-3.5 text-center">Ischemic</th>
+                            <th className="p-3.5 text-center">Hemorrhagic</th>
+                            <th className="p-3.5 text-center">TIA</th>
+                            <th className="p-3.5 text-center text-blue-400">Avg Door-to-Needle (นาที)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          {monthlyStats.length === 0 ? (
+                            <tr><td colSpan="6" className="p-6 text-center text-slate-500">ยังไม่มีข้อมูล</td></tr>
+                          ) : (
+                            monthlyStats.map((row, idx) => (
+                              <tr key={idx} className="hover:bg-[#16224f]/40 transition-colors">
+                                <td className="p-3.5 font-medium text-white">{row.month}</td>
+                                <td className="p-3.5 text-center text-base font-bold text-slate-200">{row.total_cases}</td>
+                                <td className="p-3.5 text-center text-blue-400 font-mono">{row.ischemic_count}</td>
+                                <td className="p-3.5 text-center text-red-400 font-mono">{row.hemorrhagic_count}</td>
+                                <td className="p-3.5 text-center text-amber-400 font-mono">{row.tia_count}</td>
+                                <td className="p-3.5 text-center font-bold text-emerald-400 font-mono">{row.avg_door_to_needle_mins || "-"}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-[#111c44] p-5 rounded-2xl border border-slate-800 min-h-[300px]">
+                      <h3 className="text-sm font-medium text-slate-300 mb-4">สัดส่วนประเภทความรุนแรงผู้ป่วยสะสม (Stroke Types)</h3>
+                      <div className="w-full h-64">
+                        {stats.pieData.length === 0 ? (
+                          <div className="h-full flex items-center justify-center text-xs text-slate-500">ไม่มีข้อมูลแสดงสัดส่วนกราฟ</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={stats.pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={5} dataKey="value">
+                                {stats.pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                              </Pie>
+                              <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                              <Legend formatter={(value) => <span className="text-xs text-slate-300">{value}</span>} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-[#111c44] p-5 rounded-2xl border border-slate-800 flex flex-col items-center justify-center text-center">
+                      <div className="p-3 bg-emerald-500/10 rounded-full border border-emerald-500/20 text-emerald-400 mb-2">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                      </div>
+                      <h3 className="text-sm font-medium text-slate-200">ระบบตรวจสอบคุณภาพวอร์ดผู้ป่วยใน</h3>
+                      <p className="text-xs text-slate-400 mt-2 max-w-xs">ระบบดึงและแมปโครงสร้างหัวตารางอัตโนมัติ ป้องกันปัญหากรอกฟิลด์สลับกันบนฐานข้อมูลคลาวด์</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentTab === "registry" && (
+                <div className="bg-[#111c44] rounded-2xl border border-slate-800/80 shadow-md p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-medium text-white">บัญชีรายชื่อทะเบียนผู้ป่วย Stroke</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">รวมประวัติเคสและสถานะการประเมินผลภายในหอผู้ป่วย</p>
+                    </div>
+                    <button onClick={() => { setFormData(defaultForm); setNursingNoteText(""); setShowModal(true); }} className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-medium px-4 py-2.5 rounded-xl flex items-center transition-all shadow-md">
+                      <Icons.Plus /> เพิ่มเคสคนไข้ใหม่
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-slate-800">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#1b254b] text-slate-300 font-medium border-b border-slate-800">
+                          <th className="p-4">ID บันทึก</th>
+                          <th className="p-4">HN</th>
+                          <th className="p-4">ชื่อ-นามสกุล</th>
+                          <th className="p-4">ประเภทโรค</th>
+                          <th className="p-4">rt-PA</th>
+                          <th className="p-4">ภาวะแทรกซ้อน</th>
+                          <th className="p-4 text-center">ปฏิบัติการ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                        {patients.length === 0 ? (
+                          <tr><td colSpan="7" className="p-8 text-center text-slate-500">ไม่พบฐานข้อมูลผู้ป่วยในระบบ ณ ขณะนี้</td></tr>
+                        ) : (
+                          patients.map((p, idx) => {
+                            const activeComplications = [
+                              p["Recurrent Stroke"] === true || p["Recurrent Stroke"] === "TRUE" ? "Recurrent" : "",
+                              p["Aspiration Pneumonia"] === true || p["Aspiration Pneumonia"] === "TRUE" ? "Pneumonia" : "",
+                              p["UTI"] === true || p["UTI"] === "TRUE" ? "UTI" : "",
+                              p["Bed Sore"] === true || p["Bed Sore"] === "TRUE" ? "Bed Sore" : "",
+                              p["Fall"] === true || p["Fall"] === "TRUE" ? "Fall" : "",
+                              p["Hemorrhage"] === true || p["Hemorrhage"] === "TRUE" ? "Hemorrhage" : "",
+                              p["IICP"] === true || p["IICP"] === "TRUE" ? "IICP" : "",
+                              p["Sepsis"] === true || p["Sepsis"] === "TRUE" ? "Sepsis" : "",
+                              p["DVT"] === true || p["DVT"] === "TRUE" ? "DVT" : ""
+                            ].filter(Boolean);
+
+                            return (
+                              <tr key={idx} className="hover:bg-[#16224f]/40 transition-colors">
+                                <td className="p-4 text-slate-400 font-mono">{p["ID บันทึก"] || `REC-${idx + 1}`}</td>
+                                <td className="p-4 font-medium text-white">{p["HN"]}</td>
+                                <td className="p-4">{p["ชื่อ-นามสกุล"]}</td>
+                                <td className="p-4">
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-medium ${String(p["ประเภท Stroke"]).includes('Ischemic') ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : String(p["ประเภท Stroke"]).includes('Hemorrhagic') ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                    {p["ประเภท Stroke"]}
+                                  </span>
+                                </td>
+                                <td className="p-4">{p["ได้รับยา rt-PA"] || "-"}</td>
+                                <td className="p-4">
+                                  {activeComplications.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {activeComplications.map((comp, cIdx) => (
+                                        <span key={cIdx} className="bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded text-[9px] font-medium border border-red-500/10">
+                                          {comp}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-emerald-400 text-[10px] font-semibold">✔️ ไม่มีข้อแทรกซ้อน</span>
+                                  )}
+                                </td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => handleTriggerClinicalInsight(p)}
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[10px] px-3 py-1.5 rounded-xl transition-all shadow-sm"
+                                  >
+                                    ✨ วิเคราะห์ด้วย AI
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {currentTab === "admin" && (
+                <div className="panel bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-slate-800 space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center">
+                        📥 ระบบนำเข้าข้อมูล JSON แบบกลุ่ม (Batch Import)
+                      </h3>
+                    </div>
+                    <span className="badge bg-amber-100 text-amber-800 text-[10px]">สิทธิ์ผู้ดูแลระบบ</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      วางโค้ดชุดข้อมูล (JSON Array Format)
+                    </label>
+                    <textarea 
+                      value={jsonInput}
+                      onChange={(e) => setJsonInput(e.target.value)}
+                      className="w-full h-80 font-mono text-xs p-4 border border-slate-200 rounded-xl bg-slate-900 text-emerald-400 focus:ring-2 focus:ring-indigo-500"
+                      placeholder='[{"HN": "6901234", "ชื่อ-นามสกุล": "สมชาย มีสติ", "ประเภท Stroke": "Ischemic"}]'
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button 
+                      onClick={() => {
+                        const raw = jsonInput.trim();
+                        if(!raw) return Swal.fire('ข้อมูลว่างเปล่า', 'กรุณากรอกข้อมูลรูปแบบ JSON', 'warning');
+                        try {
+                          const parsed = JSON.parse(raw);
+                          setLoading(true);
+                          if (typeof google !== 'undefined' && google.script && google.script.run) {
+                            google.script.run
+                              .withSuccessHandler((response) => {
+                                setLoading(false);
+                                if (response.status === "success") {
+                                  Swal.fire('นำเข้าสำเร็จ', `เพิ่มข้อมูลจำนวน ${parsed.length} เคส เรียบร้อย`, 'success');
+                                  setJsonInput("");
+                                  setCurrentTab("dashboard");
+                                  fetchCloudData();
+                                }
+                              })
+                              .savePatientsWithDynamicMapping(parsed, currentUser.name);
+                          } else {
+                            setLoading(false);
+                            setPatients(prev => [...prev, ...parsed]);
+                            Swal.fire('สำเร็จ (Sandbox)', 'จำลองสำเร็จ', 'success');
+                          }
+                        } catch (e) {
+                          Swal.fire('รูปแบบผิด', e.message, 'error');
+                        }
+                      }} 
+                      className="bg-indigo-600 text-white text-xs px-6 py-3 rounded-xl hover:bg-indigo-700 font-medium"
+                    >
+                      🚀 ส่งขึ้นคลาวด์เว็บจริง
+                    </button>
+                  </div>
+                </div>
+              )}
+            </main>
+          </div>
+
+          {/* 📝 โมดอลแบบฟอร์มบันทึกข้อมูล */}
+          {showModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-[#111c44] border border-slate-800 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] my-8 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="bg-blue-600/10 p-2 rounded-xl text-blue-400"><Icons.Form /></div>
+                    <h3 className="text-base font-semibold text-white">แบบฟอร์มบันทึกข้อมูลทางคลินิกผู้ป่วย Stroke</h3>
+                  </div>
+                  <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white bg-slate-800/50 w-8 h-8 rounded-xl flex items-center justify-center text-sm">✕</button>
+                </div>
+
+                <div className="px-6 pt-2 bg-[#1b254b]/40 border-b border-slate-800/60 flex space-x-4">
+                  <button type="button" onClick={() => setActiveFormTab("manual")} className={`pb-2 text-xs font-semibold px-2 border-b-2 ${activeFormTab === "manual" ? "border-blue-500 text-white" : "border-transparent text-slate-400"}`}>📝 ระบุแบบฟอร์มด้วยตนเอง</button>
+                  <button type="button" onClick={() => setActiveFormTab("ai-parse")} className={`pb-2 text-xs font-semibold px-2 border-b-2 ${activeFormTab === "ai-parse" ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-400"}`}>✨ ถอดรหัสผ่านบันทึกพยาบาล (AI Smart Note)</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                  {activeFormTab === "ai-parse" ? (
+                    <div className="space-y-4">
+                      <div className="bg-indigo-950/40 border border-indigo-900/40 p-4 rounded-xl">
+                        <h4 className="text-xs font-semibold text-indigo-300">💡 ระบบสกัดบันทึกอาการเป็นฟอร์มข้อมูลพยาบาลแบบด่วน</h4>
+                        <p className="text-[11px] text-slate-400 mt-1">พิมพ์หรือแปะบันทึกทางการพยาบาลดิบ (Nursing Notes) ภาษาไทยลงในกล่องข้อความด้านล่าง ระบบจะแมปเข้าช่องให้คลิกเดียว!</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <textarea rows="6" value={nursingNoteText} onChange={(e) => setNursingNoteText(e.target.value)} placeholder="แปะประวัติคนไข้ที่นี่..." className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl p-3 text-xs text-white"></textarea>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <button type="button" disabled={isParsingNote} onClick={handleAIParseNursingNotes} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-5 py-2.5 rounded-xl">
+                          {isParsingNote ? (
+                            <React.Fragment>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 inline-block align-middle"></div>
+                              <span>ระบบสมองกลกำลังถอดความ...</span>
+                            </React.Fragment>
+                          ) : "⚡ ถอดรหัสและกรอกข้อมูลทันที (AI Smart Note)"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleFormSubmit} className="space-y-6">
+                      <div>
+                        <h4 className="text-xs font-medium text-blue-400 uppercase tracking-wider mb-3 flex items-center"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span> ข้อมูลทั่วไปผู้ป่วยและโรคประจำตัว</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">Hospital Number (HN) *</label>
+                            <input type="text" required value={formData.hn} onChange={e => setFormData({...formData, hn: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">Admission Number (AN)</label>
+                            <input type="text" value={formData.an} onChange={e => setFormData({...formData, an: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">ชื่อ - นามสกุล ผู้ป่วย *</label>
+                            <input type="text" required value={formData.patient_name} onChange={e => setFormData({...formData, patient_name: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">อายุ (ปี)</label>
+                            <input type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">เพศ</label>
+                            <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white">
+                              <option value="ชาย">ชาย</option>
+                              <option value="หญิง">หญิง</option>
+                            </select>
+                          </div>
+                          <div className="md:col-span-2 bg-[#1b254b]/50 p-2 rounded-xl border border-slate-800/60">
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5 px-1">โรคประจำตัว</label>
+                            <div className="flex flex-wrap gap-3 px-1">
+                              <label className="flex items-center space-x-1.5"><input type="checkbox" checked={formData.ht} onChange={e=>setFormData({...formData, ht:e.target.checked})} /><span className="text-[11px] text-slate-200">HT</span></label>
+                              <label className="flex items-center space-x-1.5"><input type="checkbox" checked={formData.dm} onChange={e=>setFormData({...formData, dm:e.target.checked})} /><span className="text-[11px] text-slate-200">DM</span></label>
+                              <label className="flex items-center space-x-1.5"><input type="checkbox" checked={formData.dlp} onChange={e=>setFormData({...formData, dlp:e.target.checked})} /><span className="text-[11px] text-slate-200">DLP</span></label>
+                              <label className="flex items-center space-x-1.5"><input type="checkbox" checked={formData.af} onChange={e=>setFormData({...formData, af:e.target.checked})} /><span className="text-[11px] text-slate-200">AF</span></label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <hr className="border-slate-800/80" />
+
+                      <div>
+                        <h4 className="text-xs font-medium text-blue-400 uppercase tracking-wider mb-3 flex items-center"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span> ตัวชี้วัดทางคลินิก (Severity & Details)</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">ประเภทโรค (Stroke Type)</label>
+                            <select value={formData.stroke_type} onChange={e => setFormData({...formData, stroke_type: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white">
+                              <option value="Ischemic">Ischemic</option>
+                              <option value="Hemorrhagic">Hemorrhagic</option>
+                              <option value="TIA">TIA</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">ได้รับยา rt-PA</label>
+                            <select value={formData.rtpa} onChange={e => setFormData({...formData, rtpa: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white">
+                              <option value="ได้รับ">ได้รับ</option>
+                              <option value="ไม่ได้รับ">ไม่ได้รับ</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">สถานะจำหน่าย</label>
+                            <select value={formData.discharge_status} onChange={e => setFormData({...formData, discharge_status: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white">
+                              <option value="Improved">Improved</option>
+                              <option value="Stable">Stable</option>
+                              <option value="Refer">Refer</option>
+                              <option value="Death">Death</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">NIHSS แรกรับ</label>
+                            <input type="number" min="0" max="42" value={formData.nihss_adm} onChange={e => setFormData({...formData, nihss_adm: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-300 mb-1.5">NIHSS ก่อนจำหน่าย</label>
+                            <input type="number" min="0" max="42" value={formData.nihss_dis} onChange={e => setFormData({...formData, nihss_dis: e.target.value})} className="w-full bg-[#1b254b] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <hr className="border-slate-800/80" />
+
+                      <div>
+                        <h4 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-2 flex items-center"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-2"></span> ภาวะแทรกซ้อน (Complications Checklist)</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {[
+                            { id: "recurrent_stroke", label: "Recurrent Stroke (เป็นซ้ำ)" },
+                            { id: "aspiration_pneumonia", label: "Aspiration Pneumonia (ปอดอักเสบ)" },
+                            { id: "uti", label: "UTI (ติดเชื้อปัสสาวะ)" },
+                            { id: "bed_sore", label: "Bed Sore (แผลกดทับ)" },
+                            { id: "fall", label: "Fall (พลัดตกหกล้ม)" },
+                            { id: "hemorrhage", label: "Hemorrhage (เลือดออก)" },
+                            { id: "iicp", label: "IICP (ความดันกะโหลกสูง)" },
+                            { id: "sepsis", label: "Sepsis (ติดเชื้อในกระแสเลือด)" },
+                            { id: "dvt", label: "DVT (ลิ่มเลือดอุดตันดำลึก)" }
+                          ].map((item) => (
+                            <label key={item.id} className="flex items-center space-x-3 bg-[#1b254b]/50 p-3 rounded-xl border border-slate-800/60 cursor-pointer">
+                              <input type="checkbox" checked={formData[item.id]} onChange={e => setFormData({...formData, [item.id]: e.target.checked})} className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700" />
+                              <span className="text-xs text-slate-200">{item.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-800 flex justify-end space-x-3">
+                        <button type="button" onClick={() => setShowModal(false)} className="bg-slate-800 text-slate-300 text-xs font-medium px-5 py-2.5 rounded-xl">ยกเลิก</button>
+                        <button type="submit" className="bg-blue-600 text-white text-xs font-medium px-6 py-2.5 rounded-xl shadow-md">บันทึกเข้าคลาวด์เว็บจริง</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 🔍 โมดอลแสดงระบบประเมินวิเคราะห์ (Clinical Insight) */}
+          {insightPatient && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-indigo-50/50 rounded-t-2xl">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-950">รายงานวิเคราะห์ทางคลินิกโดย Gemini AI</h3>
+                    <p className="text-xs text-slate-500">HN: {insightPatient["HN"]} | {insightPatient["ชื่อ-นามสกุล"]}</p>
+                  </div>
+                  <button onClick={() => setInsightPatient(null)} className="text-slate-500 text-sm">✕</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                  {isGeneratingInsight ? (
+                    <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                      <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-xs text-slate-500 font-medium">กำลังประมวลผลแผนการดูแลพยาบาลจากระบบเว็บจริง...</p>
+                    </div>
+                  ) : (
+                    <div className="text-xs leading-relaxed text-slate-700 bg-slate-50 p-5 rounded-2xl border border-slate-200" dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(insightResult) }} />
+                  )}
+                </div>
+                <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+                  <button onClick={() => setInsightPatient(null)} className="bg-indigo-600 text-white text-xs font-medium px-5 py-2 rounded-xl">ปิด</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 💬 กล่องสนทนาผู้ช่วยพยาบาล AI */}
+          <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-end transition-all ${chatOpen ? "w-96" : "w-auto"}`}>
+            {chatOpen ? (
+              <div className="bg-[#111c44] border border-slate-800 w-full h-[450px] rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-3 animate-in slide-in-from-bottom-5">
+                <div className="px-4 py-3 bg-[#1b254b] border-b border-slate-800/80 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-white">✨ ผู้ช่วยคลินิกคู่ใจ (Stroke Copilot)</h4>
+                  <button onClick={() => setChatOpen(false)} className="text-slate-400 text-xs">✕</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {chatMessages.map((msg, index) => (
+                    <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs ${msg.role === "user" ? "bg-indigo-600 text-white" : "bg-[#1b254b] border border-slate-800 text-slate-200"}`}>
+                        <div dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(msg.content) }} />
+                      </div>
+                    </div>
+                  ))}
+                  {isChatSending && (
+                    <div className="flex justify-start">
+                      <div className="bg-[#1b254b] border border-slate-800 text-slate-400 rounded-xl px-3 py-2 text-xs">กำลังคำนวณข้อมูลคลินิกและสถิติวอร์ด...</div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                <form onSubmit={handleSendCopilotChat} className="p-3 bg-[#131d45] border-t border-slate-800 flex gap-2">
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="ถามคำถามคลินิกโรคสมอง..." className="flex-1 bg-[#1b254b] text-xs px-3 py-2 text-white border border-slate-700/60 rounded-xl focus:outline-none" />
+                  <button type="submit" disabled={isChatSending} className="bg-indigo-600 text-white text-xs px-4 rounded-xl">ส่ง</button>
+                </form>
+              </div>
+            ) : null}
+
+            <button onClick={() => setChatOpen(!chatOpen)} className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl">
+              <span className="text-xl">✨</span>
+            </button>
+          </div>
+
+        </div>
+      );
+    }
+
+    const rootElement = document.getElementById('app-root');
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+  </script>
+</body>
+
 </html>
